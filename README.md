@@ -1,4 +1,4 @@
-Data and scripts for the paper:
+*Data and scripts for the paper:*
 
 # Soil eDNA reflects regionally dominant species rather than local composition of tropical tree communities
 
@@ -11,3 +11,15 @@ Francesc Borràs Sayas<sup>1</sup>, Ottavia Iacovino<sup>2</sup>, María Uriarte
 <sup>3</sup> Department of Ecology, Evolution and Environmental Biology, Columbia University, New York, USA
 
 <sup>4</sup> Department of Environmental Sciences, University of Puerto Rico, Rio Piedras, Puerto Rico
+
+<sup>*</sup> Corresponding authors: robert.muscarella@ebc.uu.se, glenn.dunshea@ntnu.no
+
+
+# Instructions
+1. Clone this repository
+
+2. Download data files (Zenodo link)
+3. ...
+
+
+
