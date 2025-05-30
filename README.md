@@ -33,7 +33,7 @@ The eDNA experimental design, laboratory workflows and bioinformatics
 
 6. NOTE: In the 00.dada2+taxonomy+phyloseq.R script, there are instructions at thet start for setting working directory paths, software packages to install and shell scripts run from the terminal - not all of this script is an R script. After DADA2 denoising of sequence data, a portion of the LULU curation of ASV tables is also run from the terminal, which is clearly flagged in the 00 script. All scripts after this point are run from R.
 
-Scripts can be:
+7. Scripts can be:
 	a. Either run from first principles from the raw sequencing data received from the sequencing service provider, or
 	b. At the start of some scripts after 00, there is the option to open an R image file where the scripts prior to the current script have already been run, so the relevant R objects are already available.
 
