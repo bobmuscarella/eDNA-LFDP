@@ -36,7 +36,7 @@
 
 6. **Important:**  
    In the `00.dada2+taxonomy+phyloseq.R` script:
-   - Set working directory paths as instructed at the top.
+   - Set working directory paths in the shell script as instructed at the top.
    - Install required software packages.
    - Some parts of this script (e.g., shell commands) are not R code and must be run from the terminal.  
    - After DADA2 denoising of sequence data, LULU curation of ASV tables is partially done via the terminal—this is clearly flagged in the script.  
