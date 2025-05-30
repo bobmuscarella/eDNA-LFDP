@@ -26,13 +26,13 @@
 
 1. Clone this repository.
 
-2. Download data files (Zenodo link).
+2. Download the raw data files from Zenodo (Zenodo link).
 
 3. Transfer the data files from the unzipped Zenodo archive to the directory(ies) of the same name in the cloned `eDNA-LFDP` repository.
 
-4. Open the R project in RStudio and go to the **Files** tab.
+4. Open the R project (`eDNA-LFDP.Rproj`) in RStudio and go to the **Files** tab to open individual scripts.
 
-5. The scripts are sequentially numbered from `00` onward to reproduce all analyses and figures presented in this study.
+5. The scripts to reproduce all analyses and figures presented in this study are sequentially numbered from `00` onward.
 
 6. **Important:**  
    In the `00.dada2+taxonomy+phyloseq.R` script:
