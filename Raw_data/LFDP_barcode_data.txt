@@ -1,0 +1,4 @@
+GGTAC	rep1f	rep1r
+CAACAC	rep2f	rep2r
+ATCGGTT	rep3f	rep3r
+TCGGTCAA	rep4f	rep4r

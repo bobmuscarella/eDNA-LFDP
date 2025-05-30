@@ -3,187 +3,39 @@
 # create an environment in conda, call it a name and install:
 
 
-#### THIS IS ALL IN THE TERMINAL - PLATE
+conda create --name LFDP-EDNA
+conda activate LFDP-EDNA
 
-# cutadapt
-conda install -c bioconda cutadapt
-# sabre
-conda install -c bioconda sabre
-# dos2unix
-conda install -c conda-forge dos2unix
-# R
-conda install -c r r
+conda install -n base -c conda-forge mamba
 
-# Open the terminal and navigate to your sequencing raw_data folder. For me it is here (this will be different for you)
-cd /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData
-
-##  Make some directories to process the samples in the plate format that they were PCR'ed in (Plate 1 and PLate 2)
-mkdir plate1
-mkdir plate2
-
-# Move samples into appropriate plate directory
-
-mv /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/*P1 /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1
-
-mv /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/*P2 /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2
-
-## go into plate1 directory
-cd plate1
-## extract all sequence files from sub-directories into main directory
-mv **/*.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1
-## exit that directory 
-cd ..
-## etc
-cd plate2
-mv **/*.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2
-cd ..
-
-## Lets demultiplex our replicates - plate 1
-
-cd plate1
-
-## take a look at sabre, what it does and how you run it on github
-## based on the forward barcode read for plate1 that is designated in another text file in the same directory (plate1_barcode_data.txt)
-## make shell script to run sabre 
-echo 'for i in *1.fq.gz; do bn=${i/1.fq.gz};
-sabre pe -f ${bn}1.fq.gz -r ${bn}2.fq.gz -b /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/barcode_data.txt -u ${bn}unassigned1.fq -w ${bn}unassigned.fq;
-mv rep1f ${bn}_rep1f.fq;
-mv rep1r ${bn}_rep1r.fq;
-mv rep2f ${bn}_rep2f.fq;
-mv rep2r ${bn}_rep2r.fq;
-mv rep3f ${bn}_rep3f.fq;
-mv rep3r ${bn}_rep3r.fq;
-mv rep4f ${bn}_rep4f.fq;
-mv rep4r ${bn}_rep4r.fq;  done' > sabreplate1.sh
-
-## Using cut adapt to remove primers - Doing replicate by replicate and make reverse primer an exact match to the corresponding reverse barcode that was not removed by sabre
-## obviously you will need to adapt these sequences for the specific index used for each replicate of each plate..  rc = reverse compliment
-
-#### Trnl base primers (i.e. tag IDs etc) are:
-# Trnlg: GGGCAATCCTGAGCCAA
-# Trnlh: CCATTGAGTCTCTGCACCTATC
-
-#Plate 1 rep 1 reverse barcode is AGGAA
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGTTCCT
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): AGGAACCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep1f.fq; do bn=${i/rep1f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGTTCCT -A AGGAACCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep1out1.fq.gz --untrimmed-paired-output ${bn}.rep1out2.fq.gz -o ${bn}.rep1.trim1.fq.gz -p ${bn}.rep1.trim2.fq.gz ${bn}rep1f.fq ${bn}rep1r.fq; done' > plate1rep1.sh
-bash plate1rep1.sh
-
-#Plate 1 rep 2 reverse barcode is GAGTGG
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGCCACTC
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): GAGTGGCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep2f.fq; do bn=${i/rep2f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGCCACTC -A GAGTGGCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep2out1.fq.gz --untrimmed-paired-output ${bn}.rep2out2.fq.gz -o ${bn}.rep2.trim1.fq.gz -p ${bn}.rep2.trim2.fq.gz ${bn}rep2f.fq ${bn}rep2r.fq; done' > plate1rep2.sh
-bash plate1rep2.sh
-
-#Plate 1 rep 3 reverse barcode is CCACGTC
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGGACGTGG
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): CCACGTCCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep3f.fq; do bn=${i/rep3f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGGACGTGG -A CCACGTCCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep3out1.fq.gz --untrimmed-paired-output ${bn}.rep3out2.fq.gz -o ${bn}.rep3.trim1.fq.gz -p ${bn}.rep3.trim2.fq.gz ${bn}rep3f.fq ${bn}rep3r.fq; done' > plate1rep3.sh
-bash plate1rep3.sh
-
-#Plate 1 rep 3 reverse barcode is TTCTCAGC
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGGCTGAGAA
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): TTCTCAGCCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep4f.fq; do bn=${i/rep4f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGGCTGAGAA -A TTCTCAGCCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep4out1.fq.gz --untrimmed-paired-output ${bn}.rep4out2.fq.gz -o ${bn}.rep4.trim1.fq.gz -p ${bn}.rep4.trim2.fq.gz ${bn}rep4f.fq ${bn}rep4r.fq; done' > plate1rep4.sh
-bash plate1rep4.sh
-
-## moving trimmed files to their own directory for dada2 analysis
-## make a new folder called p1trimmed
-mkdir p1trimmed
-## move all your demultiplexed, oligo-trimmed files there.
-mv *trim1.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed
-mv *trim2.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed
+mamba create -n LFDPeDNA \
+-c bioconda -c conda-forge -c r \
+cutadapt sabre dos2unix r bioconda::blast
 
 
-### SAME PROCESS FOR PLATE 2
+### Open the shell script file LFDP_Demultiplex_Primertrim.sh and edit the follwing user input section (BASE_DIR) and (BARCODE_DATA) with appropriate paths
+## For me they are:
+# ======= USER INPUT ========
+BASE_DIR="/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data"
+BARCODE_DATA="/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/LFDP_barcode_data.txt"
+TAR_FILE="X204SC24022146-Z01-F001.tar"
+# ============================
 
-## Lets demultiplex our replicates - plate 1
+## now run the shell script in your LFDPeDNA conda environment in the terminal
+## Make sure you are in your directory where your scripts are
+cd /Users/glennd/Documents/GitHub/eDNA-LFDP/Scripts
 
-cd ..
-cd plate2
+bash LFDP_Demultiplex_Primertrim.sh
 
-## take a look at sabre, what it does and how you run it on github
-## based on the forward barcode read for plate1 that is designated in another text file in the same directory (plate1_barcode_data.txt)
-## make shell script to run sabre 
-echo 'for i in *1.fq.gz; do bn=${i/1.fq.gz};
-sabre pe -f ${bn}1.fq.gz -r ${bn}2.fq.gz -b /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/barcode_data.txt -u ${bn}unassigned1.fq -w ${bn}unassigned.fq;
-mv rep1f ${bn}_rep1f.fq;
-mv rep1r ${bn}_rep1r.fq;
-mv rep2f ${bn}_rep2f.fq;
-mv rep2r ${bn}_rep2r.fq;
-mv rep3f ${bn}_rep3f.fq;
-mv rep3r ${bn}_rep3r.fq;
-mv rep4f ${bn}_rep4f.fq;
-mv rep4r ${bn}_rep4r.fq;  done' > sabreplate2.sh
-
-## Using cut adapt to remove primers - Doing replicate by replicate and make reverse primer an exact match to the corresponding reverse barcode that was not removed by sabre
-## obviously you will need to adapt these sequences for the specific index used for each replicate of each plate..  rc = reverse compliment
-
-#### Trnl base primers (i.e. tag IDs etc) are:
-# Trnlg: GGGCAATCCTGAGCCAA
-# Trnlh: CCATTGAGTCTCTGCACCTATC
-
-#Plate 1 rep 1 reverse barcode is AGGAA
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGTTCCT
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): AGGAACCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep1f.fq; do bn=${i/rep1f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGTTCCT -A AGGAACCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep1out1.fq.gz --untrimmed-paired-output ${bn}.rep1out2.fq.gz -o ${bn}.rep1.trim1.fq.gz -p ${bn}.rep1.trim2.fq.gz ${bn}rep1f.fq ${bn}rep1r.fq; done' > plate1rep1.sh
-bash plate1rep1.sh
-
-#Plate 1 rep 2 reverse barcode is GAGTGG
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGCCACTC
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): GAGTGGCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep2f.fq; do bn=${i/rep2f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGCCACTC -A GAGTGGCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep2out1.fq.gz --untrimmed-paired-output ${bn}.rep2out2.fq.gz -o ${bn}.rep2.trim1.fq.gz -p ${bn}.rep2.trim2.fq.gz ${bn}rep2f.fq ${bn}rep2r.fq; done' > plate1rep2.sh
-bash plate1rep2.sh
-
-#Plate 1 rep 3 reverse barcode is CCACGTC
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGGACGTGG
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): CCACGTCCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep3f.fq; do bn=${i/rep3f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGGACGTGG -A CCACGTCCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep3out1.fq.gz --untrimmed-paired-output ${bn}.rep3out2.fq.gz -o ${bn}.rep3.trim1.fq.gz -p ${bn}.rep3.trim2.fq.gz ${bn}rep3f.fq ${bn}rep3r.fq; done' > plate1rep3.sh
-bash plate1rep3.sh
-
-#Plate 1 rep 3 reverse barcode is TTCTCAGC
-# Trnlg (fwd): GGGCAATCCTGAGCCAA
-# Trnlh (rcRv): GATAGGTGCAGAGACTCAATGGGCTGAGAA
-# Trnlg (rcfwd): TTGGCTCAGGATTGCCC
-# Trnlh (Rv): TTCTCAGCCCATTGAGTCTCTGCACCTATC
-
-echo 'for i in *rep4f.fq; do bn=${i/rep4f.fq}; cutadapt -a GGGCAATCCTGAGCCAA...GATAGGTGCAGAGACTCAATGGGCTGAGAA -A TTCTCAGCCCATTGAGTCTCTGCACCTATC...TTGGCTCAGGATTGCCC --untrimmed-output ${bn}.rep4out1.fq.gz --untrimmed-paired-output ${bn}.rep4out2.fq.gz -o ${bn}.rep4.trim1.fq.gz -p ${bn}.rep4.trim2.fq.gz ${bn}rep4f.fq ${bn}rep4r.fq; done' > plate1rep4.sh
-bash plate1rep4.sh
-
-## moving trimmed files to their own directory for dada2 analysis
-## make a new folder called p1trimmed
-mkdir p2trimmed
-## move all your demultiplexed, oligo-trimmed files there.
-mv *trim1.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/p2trimmed
-mv *trim2.fq.gz /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/p2trimmed
-
-##### SWITCHING TO THE R TERMINAL NOW
+##### SWITCHING NOW TO R
 
 library(dada2)
-## Making filepath based on where the trimmed files are. Now is a good point to follow the DADA2 tutorial while trying these steps
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed")
-path <- "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed"
+
+## Update your working directory and your file paths in R now as appropriate:
+
+setwd("/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed")
+path <- "/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed"
+
 fnFs <- sort(list.files(path, pattern=".trim1.fq.gz", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern=".trim2.fq.gz", full.names = TRUE))
 
@@ -933,6 +785,46 @@ lapply(p2indexinfo1, function(x) sum(subset(x, sampletype == "Tagcatch")$totseq)
 # So tag jump rates between 5 and 7 reads per 100,000 - nothing to be concerned about
 # so 1 per 20,000 reads.. 
 
+## Now we move onto using control samples to control for process & cross-contamination and removing the control samples
+## first we remove the PCR positive control OTUs and then samples
+### this function will find the positive control OTUs based on amplification in 2/3 PCR replicates within all positive control samples and remove these OTUS then the positive control samples
+
+filter_otus_strong_in_all_P <- function(mat) {
+  rows <- rownames(mat)
+  is_P <- grepl("^P_", rows)
+  
+  P_rows <- rows[is_P]
+  P_base_samples <- sub("r[0-9]+$", "", P_rows)
+  
+  otus <- colnames(mat)
+  keep_otus <- logical(length(otus))
+  
+  for (i in seq_along(otus)) {
+    col <- mat[, otus[i]]
+    P_counts <- col[is_P]
+    
+    df <- data.frame(sample = P_base_samples, present = P_counts > 0)
+    rep_counts <- tapply(df$present, df$sample, sum)
+    
+    # Remove OTU if it appears in >1 replicate for every P_ sample
+    remove_this <- all(rep_counts > 1)
+    keep_otus[i] <- !remove_this
+  }
+  
+  # Keep only those OTUs that passed the filter
+  mat_filtered <- mat[, keep_otus, drop = FALSE]
+  
+  # Then remove all rows starting with P_
+  mat_final <- mat_filtered[!grepl("^P_", rownames(mat_filtered)), , drop = FALSE]
+  
+  return(mat_final)
+}
+
+p1data1.pr <- lapply(p1data1, filter_otus_strong_in_all_P)
+p2data1.pr <- lapply(p2data1, filter_otus_strong_in_all_P)
+
+
+
 ## We can control for NTCs first. Here we simply take the largest value in each OTU that occurs in any NTC and subtract that from all samples in the plate.
 ## Function to do so:
 
@@ -943,8 +835,8 @@ ntc.change <- function(x){
   return(x1)
 }
 
-p1data1.ntc <- lapply(p1data1, ntc.change)
-p2data1.ntc <- lapply(p2data1, ntc.change)
+p1data1.ntc <- lapply(p1data1.pr, ntc.change)
+p2data1.ntc <- lapply(p2data1.pr, ntc.change)
 
 ## Now to control for extraction blanks - function to 1) batch samples into their cycling group, then extraction batch 2) select the highest number of sequences in each OTU in the extraction bkank & 
 ## stubtract that number from the samples OTUs (if it exists there) & and make it so the lowest number in the OTUs is zero (prevent negative values)
