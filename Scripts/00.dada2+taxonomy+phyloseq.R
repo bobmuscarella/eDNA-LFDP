@@ -829,6 +829,118 @@ p2data1 <-  lapply(p2data, droprep4p2)
 write.csv(p1indexinfo1$p1seqtab.nochim, "plate1postrepremoval.csv")
 write.csv(p2indexinfo1$p2seqtab.nochim, "plate2postrepremoval.csv")
 
+### Need to get a summary of tracking reads through the pipeline from the beginning to the end 
+### That is, before and after after removal of bad PCR replicate
+### then also isolating only samples in this study - ended up using the pspool data so summarizing this.
+
+## Starting first with the entire dataset straight after DADA processing using the read tracking in the pipelines above:
+
+# Function to get prefix-based column sums
+get_prefix_sums <- function(df) {
+  prefixes <- substr(rownames(df), 1, 2)
+  aggregate(df, by = list(Prefix = prefixes), FUN = sum)
+}
+
+# Get prefix-wise column sums for each table
+p1_sums <- get_prefix_sums(p1trackpsPP)
+p2_sums <- get_prefix_sums(P2trackpsPP)
+
+# Merge summaries from both tables
+merged_sums <- merge(p1_sums, p2_sums, by = "Prefix", all = TRUE, suffixes = c("_P1", "_P2"))
+
+# Replace any NAs with 0
+merged_sums[is.na(merged_sums)] <- 0
+
+# Sum corresponding columns (P1 + P2) per prefix
+# Get names of columns to sum (exclude Prefix)
+cols_to_sum <- grep("input|filtered|denoisedF|denoisedR|merged|Chi-removed", names(merged_sums), value = TRUE)
+cols_p1 <- grep("_P1$", cols_to_sum, value = TRUE)
+cols_p2 <- gsub("_P1$", "_P2", cols_p1)
+combined_cols <- gsub("_P1$", "", cols_p1)
+
+# Create final result: Prefix + summed columns
+final_sums <- data.frame(Prefix = merged_sums$Prefix)
+for (i in seq_along(combined_cols)) {
+  final_sums[[combined_cols[i]]] <- merged_sums[[cols_p1[i]]] + merged_sums[[cols_p2[i]]]
+}
+
+# View result
+final_sums
+
+### NOw all samples after removing the bad PCR replicate above 
+library(dada2)
+tempalldat <-mergeSequenceTables(p1data1[[6]], p2data1[[6]])
+
+rnames <- rownames(tempalldat)
+
+# Extract the prefix (first 2 characters + underscore)
+prefixes <- substr(rnames, 1, 2)
+
+# Compute row sums
+row_sums <- rowSums(tempalldat)
+
+# Group sums by prefix
+prefix_groups_alldat <- tapply(row_sums, prefixes, sum)
+
+# Display result
+prefix_groups_alldat
+
+#### Now just samples from this study
+library(dada2)
+tempalldat <-mergeSequenceTables(p1data1[[6]], p2data1[[6]])
+allindexinfo <- rbind(p1pspool.lulu.index, p2pspool.lulu.index)
+## loading metadata on samples in PNAS study only
+tempsamps <- read.csv("Processed_data/sample_dataPNAS.csv")
+# Get row names from tempalldat
+tempall_rows <- rownames(tempalldat)
+
+# Extract desired S_ sample names from tempsamps$name (drop _P1/_P2)
+desired_s_names <- sub("_P[12]$", "", tempsamps$name)
+
+# Filter rows
+selected_rows <- tempall_rows[
+  grepl("^(E|N|P|T|T1)_", tempall_rows) |
+    (
+      grepl("^S_", tempall_rows) &
+        sub("_P[12]r\\d+$", "", tempall_rows) %in% desired_s_names
+    )
+]
+
+# Subset tempalldat
+tempfiltered_data <- tempalldat[selected_rows, , drop = FALSE]
+
+## Sanity check counting samples to make sure it aligns with sample info
+s_rows <- rownames(tempfiltered_data)[grepl("^S_", rownames(tempfiltered_data))]
+
+# Remove last 5 characters (e.g., "_P1r1", "_P2r3")
+s_base_names <- substr(s_rows, 1, nchar(s_rows) - 5)
+
+# Count unique base names
+num_unique_s <- length(unique(s_base_names))
+
+# Output result
+num_unique_s
+nrow(tempsamps) ### ok looks good. Now summarizing these for each sample type for table S3 in supplementary information
+
+# Extract the prefix (first 2 characters + underscore)
+rnames <- rownames(tempfiltered_data)
+prefixes <- substr(rnames, 1, 2)
+
+# Compute row sums
+row_sums <- rowSums(tempfiltered_data)
+
+# Group sums by prefix
+prefix_groups_this_study <- tapply(row_sums, prefixes, sum)
+
+# Display result
+prefix_groups_this_study
+
+## Displat all results for SI table S3:
+final_sums
+prefix_groups_alldat
+prefix_groups_this_study
+
+
 ## Now we have curated lists of data and index info where spurious PCR replicates are removed. We can now discount OTUs that appear in control samples
 ## and discard all control samples from data matrices, then move on to analysing the sample data.
 

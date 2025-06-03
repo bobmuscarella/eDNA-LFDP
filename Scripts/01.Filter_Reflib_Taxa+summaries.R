@@ -70,6 +70,27 @@ postcut@sam_data$afterlibsize <- rowSums(otu_table(postcut))
 postcut@sam_data$afterlibotus <- rowSums(otu_table(postcut) != 0)
 postcut <-phyloseq_validate(postcut, remove_undetected = TRUE)
 
+### Getting the mean and SE read count of all samples in this study
+# Extract the OTU table as a matrix
+# Extract OTU table as a matrix
+otu_mat <- as(otu_table(postcut), "matrix")
+
+# If taxa are rows, then samples are columns (this is the usual case)
+# So we sum across rows to get sample totals (i.e., library sizes)
+if (taxa_are_rows(postcut)) {
+  sample_sums <- colSums(otu_mat)
+} else {
+  sample_sums <- rowSums(otu_mat)
+}
+
+# Compute mean and standard error of library sizes
+mean_lib_size <- mean(sample_sums)
+se_lib_size <- sd(sample_sums) / sqrt(length(sample_sums))
+
+# Display results
+cat("Mean library size:", mean_lib_size, "\n")
+cat("Standard error:", se_lib_size, "\n")
+
 ## For downstream graphs summarizing the proportions of reads and OTUs discarded in each sample
 ## because they did not appear in the reference library
 saveRDS(list(precut=precut, postcut=postcut), 
@@ -135,8 +156,7 @@ smallgridprecut <-phyloseq_validate(smallgridprecut, remove_undetected = TRUE)
 smallgridpostcut <- subset_samples(postcut, experiment == "bigplot/smallss")
 smallgridpostcut <-phyloseq_validate(smallgridpostcut, remove_undetected = TRUE)
 
-###### Go to xxx script to make plot of this biggrid minimum library size filtering
-
+######
 ## Now to link the OTU names to the POTU table that cesc has, just access the object:
 
 ## to get the link between otu names and POTU (cesc's code for the reference libraries, load this list)
@@ -165,7 +185,7 @@ colnames(otu_table(biggridpostcut))
 ## Getting stats on library sizes
 biggridsums <- rowSums(otu_table(biggrid_10k))
 
-### getting together data for analysis and plots of sub-samples and small grid samples
+### getting together data for analysis and plots of sub-samples and intensive plot samples
 ssdat <- R1ref.lib.list[[6]]
 ssdat <- prune_samples(grepl("bigplot", ssdat@sam_data$experiment), ssdat)
 ssdat <- subset_samples(ssdat, experiment != "bigplot/samptreat")
@@ -178,6 +198,8 @@ rarfun  <- function(x) {
   sar.rats.rarefy <- rarefy_even_depth(x, sample.size=rfy, replace=FALSE, rngseed = 1)
   return(sar.rats.rarefy)
 }
+min(rowSums(otu_table(ssdat))) ## What is the minimum library size for 10k RD OTU table? 
+
 repfil_ssdat <- R2ref.lib.list[[6]]
 repfil_ssdat <- prune_samples(grepl("bigplot", repfil_ssdat@sam_data$experiment), repfil_ssdat)
 repfil_ssdat <- subset_samples(repfil_ssdat, experiment != "bigplot/samptreat")
@@ -487,11 +509,45 @@ tabinc1 ## total LFDP OTUs
 ###########################################
 
 alldatgotu$lenient_10k # used big grid data
+
+# Extract OTU table as matrix
+otu_mat <- as(otu_table(alldatgotu$lenient_10k), "matrix")
+
+# Count non-zero OTUs per sample (richness)
+otu_richness <- colSums(otu_mat > 0)
+
+# Compute mean and SD of richness
+mean_richness <- mean(otu_richness)
+sd_richness <- sd(otu_richness)
+
+# Output
+summary(otu_richness)
+cat("Mean OTU richness per sample:", mean_richness, "\n")
+cat("Standard deviation:", sd_richness, "\n")
+
+
 tabinc1 # intentisive sample data
 tab <- subsample_etc_gotus$ssdat
 c12 <- subset_samples(tab, realsample1 == "C12")
 c12 <- subset_samples(c12, DNAtreat == "clean")
 c12<- phyloseq_validate(c12, remove_undetected = TRUE) # c12 pooled and unpooled sample data
+
+## summaries of OTUs per sample for intensive plot:
+# Extract OTU table as matrix
+otu_mat <- as(otu_table(subsample_etc_gotus$ssdat), "matrix")
+
+# Count non-zero OTUs per sample (richness)
+otu_richness <- colSums(otu_mat > 0)
+
+# Compute mean and SD of richness
+mean_richness <- mean(otu_richness)
+sd_richness <- sd(otu_richness)
+
+# Output
+summary(otu_richness)
+cat("Mean OTU richness per sample:", mean_richness, "\n")
+cat("Standard deviation:", sd_richness, "\n")
+
 
 tab <- subsample_etc_gotus$ssdat
 c18 <- subset_samples(tab, realsample1 == "C18")
@@ -525,4 +581,107 @@ tax_table(c12)["gOTU27", ]
 check_missing_taxa(c18, alldatgotu$lenient_10k, "c18")
 check_missing_taxa(c8, alldatgotu$lenient_10k, "c8")
 
+###### Getting LFDP OTUs across all intensive plot bioinformatic iterations to make statement on the shared OTU content of all samples
+intensive_plot<- readRDS("Processed_data/subsample-smallplot-gotus.RData")
+intensive_plot
+# Initialize list for updated phyloseq objects
+# Create named vectors for mapping (R1 and R2)
+otu_to_gotu_R1 <- setNames(otu_gotu_mapR1$gOTU, otu_gotu_mapR1$OTU)
+otu_to_gotu_R2 <- setNames(otu_gotu_mapR2$gOTU, otu_gotu_mapR2$OTU)
 
+# Initialize list for updated phyloseq objects
+intensive_plot_gotus <- list()
+
+# Loop through all intensive_plot phyloseq objects
+for (name in names(intensive_plot)) {
+  ps_obj <- intensive_plot[[name]]
+  
+  # Select correct OTU-to-gOTU mapping
+  if (grepl("repfil", name)) {
+    otu_to_gotu <- otu_to_gotu_R2
+  } else {
+    otu_to_gotu <- otu_to_gotu_R1
+  }
+  
+  # Extract and process components
+  otu_tab <- as(otu_table(ps_obj), "matrix")
+  sample_dat <- sample_data(ps_obj)
+  tax_tab <- tax_table(ps_obj)
+  
+  # Transpose OTU table if needed
+  if (!taxa_are_rows(otu_table(ps_obj))) {
+    otu_tab <- t(otu_tab)
+  }
+  
+  # Match and rename OTUs
+  matched_otus <- intersect(rownames(otu_tab), names(otu_to_gotu))
+  renamed_otus <- otu_to_gotu[matched_otus]
+  rownames(otu_tab)[match(matched_otus, rownames(otu_tab))] <- renamed_otus
+  
+  # Collapse duplicate gOTUs
+  otu_tab_collapsed <- as.matrix(rowsum(otu_tab, group = rownames(otu_tab)))
+  
+  # Remove OTUs that weren't mapped to gOTUs
+  valid_gOTUs <- intersect(rownames(otu_tab_collapsed), unique(otu_to_gotu))
+  otu_tab_collapsed <- otu_tab_collapsed[valid_gOTUs, , drop = FALSE]
+  
+  # Update taxonomy table
+  if (!is.null(tax_tab)) {
+    rownames(tax_tab)[rownames(tax_tab) %in% matched_otus] <- renamed_otus
+    tax_tab <- tax_tab[!duplicated(rownames(tax_tab)), , drop = FALSE]
+    tax_tab <- tax_tab[valid_gOTUs, , drop = FALSE]
+  }
+  
+  # Create updated phyloseq object
+  new_ps <- phyloseq(
+    otu_table(otu_tab_collapsed, taxa_are_rows = TRUE),
+    sample_dat,
+    if (!is.null(tax_tab)) tax_table(tax_tab)
+  )
+  
+  # Store result
+  intensive_plot_gotus[[name]] <- new_ps
+  message("✅ Processed: ", name)
+}
+
+##
+## now just isoloating intensive plot samples rather than also having unpooled / pooled big grid samples
+library(microViz)
+intensive_plot_gotus
+intensive_plot_gotus <- lapply(intensive_plot_gotus, function (x)  subset_samples(x, experiment == "bigplot/smallss"))
+intensive_plot_gotus <- lapply(intensive_plot_gotus, function (x) phyloseq_validate(x, remove_undetected = TRUE))
+intensive_plot_gotus
+#############
+## Now finding the range of percentages of OTUs occurring in ≤2 samples in the >10k bioinformatic filtering iterations 
+# Filter to just *10k phyloseq objects
+intensive_plot_gotus
+
+# Initialize result vector
+percent_rare_otus_all <- numeric(length(intensive_plot_gotus))
+names(percent_rare_otus_all) <- names(intensive_plot_gotus)
+
+# Loop through all phyloseq objects
+for (name in names(intensive_plot_gotus)) {
+  ps <- intensive_plot_gotus[[name]]
+  otu_mat <- as(otu_table(ps), "matrix")
+  
+  # Transpose if needed
+  if (!taxa_are_rows(ps)) {
+    otu_mat <- t(otu_mat)
+  }
+  
+  # Count in how many samples each OTU occurs
+  otu_prevalence <- rowSums(otu_mat > 0)
+  
+  # Calculate % of OTUs in ≤2 samples
+  percent_rare_otus_all[name] <- mean(otu_prevalence <= 2) * 100
+}
+
+# Range of percentages
+range_all <- range(percent_rare_otus_all)
+
+# Output
+print(round(percent_rare_otus_all, 2))
+cat("\nRange of % OTUs in ≤2 samples across all datasets:\n")
+cat("Min:", round(range_all[1], 2), "%\n")
+cat("Max:", round(range_all[2], 2), "%\n")
