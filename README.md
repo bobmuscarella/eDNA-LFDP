@@ -48,3 +48,4 @@
 
 ---
 
+8. To make the scripts functional in terms of correct file paths using the R project, unzip the "Processed_data", "Raw_data" and "TaxonomyFiles" from the Zenodo link above and add them to the root directory ("eDNA-LFDP") of the reposiitory.
