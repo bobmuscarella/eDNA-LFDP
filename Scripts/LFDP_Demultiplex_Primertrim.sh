@@ -59,7 +59,7 @@ EOF
         cat <<EOF > ${PLATE}_rep${rep}.sh
 for i in *rep${rep}f.fq; do
     bn=\${i/rep${rep}f.fq}
-    cutadapt -a GGGCAATCCTGAGCCAA...$rcRv -A $Rv...TTGGCTCAGGATTGCCC \\
+    cutadapt -a ^GGGCAATCCTGAGCCAA...$rcRv -A $Rv...TTGGCTCAGGATTGCCC \\
         --untrimmed-output \${bn}.rep${rep}out1.fq.gz \\
         --untrimmed-paired-output \${bn}.rep${rep}out2.fq.gz \\
         -o \${bn}.rep${rep}.trim1.fq.gz -p \${bn}.rep${rep}.trim2.fq.gz \\
@@ -72,10 +72,15 @@ EOF
     echo ">>> Moving trimmed files for $PLATE to ${PLATE}trimmed/"
     mkdir -p ${PLATE}trimmed
     mv *trim1.fq.gz *trim2.fq.gz ${PLATE}trimmed/
+
+    echo ">>> Cleaning up intermediate files for $PLATE"
+    rm -f *_rep*f.fq *_rep*r.fq *unassigned*.fq *.out*.fq.gz sabre_${PLATE}.sh ${PLATE}_rep*.sh
+
     cd "$DATA_DIR"
 }
 
 process_plate "plate1"
 process_plate "plate2"
 
+echo ">>> Cleanup complete. Final files: raw fastq + trimmed outputs."
 echo ">>> Pipeline complete! Ready for R."

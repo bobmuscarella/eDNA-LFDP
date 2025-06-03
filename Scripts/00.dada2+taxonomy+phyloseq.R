@@ -3,17 +3,19 @@
 # create an environment in conda, call it a name and install:
 
 
-conda create --name LFDP-EDNA
-conda activate LFDP-EDNA
 
+## install mamba if you dont already have it
 conda install -n base -c conda-forge mamba
 
+## install dependencies
 mamba create -n LFDPeDNA \
 -c bioconda -c conda-forge -c r \
-cutadapt sabre dos2unix r bioconda::blast
+cutadapt=1.18 sabre dos2unix r bioconda::blast
 
+# activate your env
+conda activate LFDPeDNA
 
-### Open the shell script file LFDP_Demultiplex_Primertrim.sh and edit the follwing user input section (BASE_DIR) and (BARCODE_DATA) with appropriate paths
+### Open the shell script file LFDP_Demultiplex_Primertrim.sh and edit the following user input section (BASE_DIR) and (BARCODE_DATA) with appropriate paths
 ## For me they are:
 # ======= USER INPUT ========
 BASE_DIR="/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data"
@@ -25,19 +27,24 @@ TAR_FILE="X204SC24022146-Z01-F001.tar"
 ## Make sure you are in your directory where your scripts are
 cd /Users/glennd/Documents/GitHub/eDNA-LFDP/Scripts
 
+## Note that running the below shell script in your conda env demultiplexes PCR replicates from each sample and removes PCR primers and indexes
+## All intermediate files (i.e. files where indexes for demultiplexing PCR replicates are not found or cutadapt does not find the primer sequence)
+## are discarded to reduce memory footprint. If one wants the intermediate files retained, the shell script needs modification
+
 bash LFDP_Demultiplex_Primertrim.sh
 
-##### SWITCHING NOW TO R
-
+##### SWITCHING NOW TO R - open R in your preferred environment - This workflow has been prepared in Rstudio
+##### It is important to now open the R project file in the eDNA-LFDP repo home directory so that the file paths below are correct
 library(dada2)
 
 ## Update your working directory and your file paths in R now as appropriate:
 
-setwd("/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed")
-path <- "/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate1/p1trimmed"
+path <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate1", "plate1trimmed")
+
 
 fnFs <- sort(list.files(path, pattern=".trim1.fq.gz", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern=".trim2.fq.gz", full.names = TRUE))
+
 
 ###tidying up sample names and replicates
 sample.names <-sapply(strsplit(basename(fnFs), "_"), function(x){paste(x[[1]], x[[2]], x[[3]], sep="_")})
@@ -49,12 +56,12 @@ filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
 ## checking some quality plots 
-plotQualityProfile(fnFs[290:300]) # 
-plotQualityProfile(fnRs[290:300])  #
+plotQualityProfile(fnFs[295:306]) # 
+plotQualityProfile(fnRs[295:306])  #
 
-
-
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, # truncLen=c(45,45),
+# note the fall in quality past around 60 bp is less concerning a sequencing run problem and mostly due to the short length of the marker for most taxa
+## filtering and trimming of the data is with dada2 defult parameters
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
                      maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
                      compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 
@@ -74,16 +81,16 @@ filtRs <- filtRs[-drops]
 
 ## Learning error rates on these data
 
-errF <- learnErrors(filtFs, multithread=TRUE, MAX_CONSIST=20)
-errR <- learnErrors(filtRs, multithread=TRUE, MAX_CONSIST=20)
+#errF <- learnErrors(filtFs, multithread=TRUE, MAX_CONSIST=20)
+#errR <- learnErrors(filtRs, multithread=TRUE, MAX_CONSIST=20)
 
 ## Having a look at error plots
-oldFerrs <- plotErrors(errF, nominalQ=TRUE)
-oldFerrs
+#oldFerrs <- plotErrors(errF, nominalQ=TRUE)
+#oldFerrs
 #dev.off() 
 #pdf("rv_error.pdf")
-oldRerrs <- plotErrors(errR, nominalQ=TRUE)
-oldRerrs
+#oldRerrs <- plotErrors(errR, nominalQ=TRUE)
+#oldRerrs
 
 ## getting some weird dog-leg fits typical of 
 
@@ -179,10 +186,9 @@ derepFs <- derepFastq(filtFs, verbose=TRUE)
 derepRs <- derepFastq(filtRs, verbose=TRUE)
 
 # Name the derep-class objects by the sample names - use sample.names1 if you needed to remove samples after filtering
-names(derepFs) <- sample.names
 ##   Update/Change the sample.names object with the removed samples
-sample.names <- sample.names[-c(34,35,46,47,51,62, 110, 314, 343, 344, 348, 354, 355, 356, 358, 360, 372, 382)]
-
+sample.names <- sample.names[-drops]
+names(derepFs) <- sample.names
 names(derepFs) <- sample.names
 ### applying dada2 core inference algorithm - using default of all libraries processed seperately - no pooling
 dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
@@ -252,18 +258,34 @@ head(p1trackpsPP)
 
 #######################################
 #################################
-## Curating datasets with LULU
+## Curating datasets with LULU - note commented out installation to use if required
 library(devtools)
 install_github("tobiasgf/lulu")  
 library(lulu)
 
-## Make a directory in the plate1 dir for this in the terminal (seqfiles)
-mkdir seqfiles
+# Define the output directory correctly relative to project root
+outdir <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate1", "postdadaseqfiles")
 
-## getting sequences
-uniquesToFasta(P1seqtab.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/seqfiles/P1seqtab.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P1seqtab.nochim)))))
-uniquesToFasta(P1seqtabPP.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/seqfiles/P1seqtabPP.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P1seqtabPP.nochim)))))
-uniquesToFasta(P1seqtabpsPP.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/seqfiles/P1seqtabpsPP.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P1seqtabpsPP.nochim)))))
+# Create the directory in the correct location
+dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+
+uniquesToFasta(
+  P1seqtab.nochim,
+  fout = file.path(outdir, "P1seqtab.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P1seqtab.nochim))))
+)
+
+uniquesToFasta(
+  P1seqtabPP.nochim,
+  fout = file.path(outdir, "P1seqtabPP.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P1seqtabPP.nochim))))
+)
+
+uniquesToFasta(
+  P1seqtabpsPP.nochim,
+  fout = file.path(outdir, "P1seqtabpsPP.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P1seqtabpsPP.nochim))))
+)
 
 ## Make LULU OTU tables (OTUs: rows, samples: columns)
 npool.lulu <- P1seqtab.nochim
@@ -279,9 +301,10 @@ colnames(pspool.lulu) <- paste0("OTU", seq(length(getSequences(P1seqtabpsPP.noch
 pspool.lulu <- t(pspool.lulu)
 
 ########### THIS NEXT PART IN THE BASH TERMINAL WITH BLAST INSTALLED IN PATH (or conda environment)
-################### 
+################### CHANGE PATH AS REQUIRED
 
-cd /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/seqfiles
+cd /Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate1/postdadaseqfiles
+
   #First produce a blast databases with the OTUs
 makeblastdb -in P1seqtab.nochim.fasta -parse_seqids -dbtype nucl
 makeblastdb -in P1seqtabPP.nochim.fasta -parse_seqids -dbtype nucl
@@ -293,15 +316,18 @@ blastn -db P1seqtabPP.nochim.fasta -outfmt '6 qseqid sseqid pident' -out Pool_ma
 blastn -db P1seqtabpsPP.nochim.fasta -outfmt '6 qseqid sseqid pident' -out psPool_match_list.txt -qcov_hsp_perc 80 -perc_identity 84 -query P1seqtabpsPP.nochim.fasta
 
 ### Now running LULU algorithm IN R
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate1/seqfiles")
-NoPool_match_list.txt <- read.table("NoPool_match_list.txt")
-str(NoPool_match_list.txt)
-str(npool.lulu)
-Pool_match_list.txt <- read.table("Pool_match_list.txt")
-psPool_match_list.txt <- read.table("psPool_match_list.txt")
-nopool.nochim.curated_result <- lulu(as.data.frame(npool.lulu), NoPool_match_list.txt)
-pool.nochim.curated_result <- lulu(as.data.frame(pool.lulu), Pool_match_list.txt)
-pspool.nochim.curated_result <- lulu(as.data.frame(pspool.lulu), psPool_match_list.txt)
+# Define the input directory for match lists (relative to R project root)
+luludir <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate1", "postdadaseqfiles")
+
+# Read in match list files using full relative paths
+NoPool_match_list <- read.table(file.path(luludir, "NoPool_match_list.txt"))
+Pool_match_list <- read.table(file.path(luludir, "Pool_match_list.txt"))
+psPool_match_list <- read.table(file.path(luludir, "psPool_match_list.txt"))
+
+# Run LULU using the match lists
+nopool.nochim.curated_result <- lulu(as.data.frame(npool.lulu), NoPool_match_list)
+pool.nochim.curated_result <- lulu(as.data.frame(pool.lulu), Pool_match_list)
+pspool.nochim.curated_result <- lulu(as.data.frame(pspool.lulu), psPool_match_list)
 
 ## Check out how many OTUs were collapsed:
 print(paste0("Not Pooled: ", "OTUs after Lulu: ", nopool.nochim.curated_result$curated_count, " --- ", "OTUs before Lulu: ", nrow(nopool.nochim.curated_result$original_table)))
@@ -328,8 +354,8 @@ colnames(p1pspool.lulu) <- colnames(P1seqtabpsPP.nochim[, pspool.kept.otus])
 
 
 ## Making filepath based on where the trimmed files are. Now is a good point to follow the DADA2 tutorial while trying these steps
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/p2trimmed")
-path <- "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/p2trimmed"
+path <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate2", "plate2trimmed")
+# path <- "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/p2trimmed"
 fnFs <- sort(list.files(path, pattern=".trim1.fq.gz", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern=".trim2.fq.gz", full.names = TRUE))
 
@@ -343,10 +369,10 @@ filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
 ## checking some quality plots 
-plotQualityProfile(fnFs[290:300]) # 
-plotQualityProfile(fnRs[290:300])  #
+plotQualityProfile(fnFs[295:306]) # 
+plotQualityProfile(fnRs[296:306])  #
 
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, # truncLen=c(45,45),
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, 
                      maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
                      compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 
@@ -367,16 +393,16 @@ filtRs <- filtRs[-drops]
 
 ## Learning error rates on these data
 
-errF <- learnErrors(filtFs, multithread=TRUE, MAX_CONSIST=20)
-errR <- learnErrors(filtRs, multithread=TRUE, MAX_CONSIST=20)
+#errF <- learnErrors(filtFs, multithread=TRUE, MAX_CONSIST=20)
+#errR <- learnErrors(filtRs, multithread=TRUE, MAX_CONSIST=20)
 
 ## Having a look at error plots
-oldFerrs <- plotErrors(errF, nominalQ=TRUE)
-oldFerrs
+#oldFerrs <- plotErrors(errF, nominalQ=TRUE)
+#oldFerrs
 #dev.off() 
 #pdf("rv_error.pdf")
-oldRerrs <- plotErrors(errR, nominalQ=TRUE)
-oldRerrs
+#oldRerrs <- plotErrors(errR, nominalQ=TRUE)
+#oldRerrs
 
 ## getting some weird dog-leg fits typical of novaseq data
 
@@ -472,11 +498,12 @@ derepFs <- derepFastq(filtFs, verbose=TRUE)
 derepRs <- derepFastq(filtRs, verbose=TRUE)
 
 # Name the derep-class objects by the sample names - use sample.names1 if you needed to remove samples after filtering
-names(derepFs) <- sample.names
 ##   Update/Change the sample.names object with the removed samples
 sample.names <- sample.names[-drops]
 
 names(derepFs) <- sample.names
+names(derepFs) <- sample.names
+
 ### applying dada2 core inference algorithm - using default of all libraries processed seperately - no pooling
 dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
 dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
@@ -546,17 +573,32 @@ head(P2trackpsPP)
 #######################################
 #################################
 ## Curating datasets with LULU
-library(devtools)
-install_github("tobiasgf/lulu")  
-library(lulu)
+#library(devtools)
+#install_github("tobiasgf/lulu")  
+#library(lulu)
 
-## Make a directory in the plate2 dir for this in the terminal (seqfiles)
-mkdir seqfiles
+outdir <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate2", "postdadaseqfiles")
 
-## getting sequences
-uniquesToFasta(P2seqtab.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/seqfiles/P2seqtab.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P2seqtab.nochim)))))
-uniquesToFasta(P2seqtabPP.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/seqfiles/P2seqtabPP.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P2seqtabPP.nochim)))))
-uniquesToFasta(P2seqtabpsPP.nochim, fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/seqfiles/P2seqtabpsPP.nochim.fasta", ids=paste0("OTU",  seq(length(getSequences(P2seqtabpsPP.nochim)))))
+# Create the directory in the correct location
+dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+
+uniquesToFasta(
+  P2seqtab.nochim,
+  fout = file.path(outdir, "P2seqtab.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P2seqtab.nochim))))
+)
+
+uniquesToFasta(
+  P2seqtabPP.nochim,
+  fout = file.path(outdir, "P2seqtabPP.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P2seqtabPP.nochim))))
+)
+
+uniquesToFasta(
+  P2seqtabpsPP.nochim,
+  fout = file.path(outdir, "P2seqtabpsPP.nochim.fasta"),
+  ids = paste0("OTU", seq(length(getSequences(P2seqtabpsPP.nochim))))
+)
 
 ## Make LULU OTU tables (OTUs: rows, samples: columns)
 npool.lulu <- P2seqtab.nochim
@@ -572,9 +614,10 @@ colnames(pspool.lulu) <- paste0("OTU", seq(length(getSequences(P2seqtabpsPP.noch
 pspool.lulu <- t(pspool.lulu)
 
 ########### THIS NEXT PART IN THE BASH TERMINAL WITH BLAST INSTALLED IN PATH (or conda environment)
-################### 
+################### CHANGE PATH AS REQUIRED
 
-cd /Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/seqfiles
+cd /Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data/X204SC24022146-Z01-F001/01.RawData/plate2/postdadaseqfiles
+
 #First produce a blast databases with the OTUs
 makeblastdb -in P2seqtab.nochim.fasta -parse_seqids -dbtype nucl
 makeblastdb -in P2seqtabPP.nochim.fasta -parse_seqids -dbtype nucl
@@ -586,15 +629,18 @@ blastn -db P2seqtabPP.nochim.fasta -outfmt '6 qseqid sseqid pident' -out Pool_ma
 blastn -db P2seqtabpsPP.nochim.fasta -outfmt '6 qseqid sseqid pident' -out psPool_match_list.txt -qcov_hsp_perc 80 -perc_identity 84 -query P2seqtabpsPP.nochim.fasta
 
 ### Now running LULU algorithm
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/plate2/seqfiles")
-NoPool_match_list.txt <- read.table("NoPool_match_list.txt")
-str(NoPool_match_list.txt)
-str(npool.lulu)
-Pool_match_list.txt <- read.table("Pool_match_list.txt")
-psPool_match_list.txt <- read.table("psPool_match_list.txt")
-nopool.nochim.curated_result <- lulu(as.data.frame(npool.lulu), NoPool_match_list.txt)
-pool.nochim.curated_result <- lulu(as.data.frame(pool.lulu), Pool_match_list.txt)
-pspool.nochim.curated_result <- lulu(as.data.frame(pspool.lulu), psPool_match_list.txt)
+# Define the input directory for match lists (relative to R project root)
+luludir <- file.path("Raw_data", "X204SC24022146-Z01-F001", "01.RawData", "plate2", "postdadaseqfiles")
+
+# Read in match list files using full relative paths
+NoPool_match_list <- read.table(file.path(luludir, "NoPool_match_list.txt"))
+Pool_match_list <- read.table(file.path(luludir, "Pool_match_list.txt"))
+psPool_match_list <- read.table(file.path(luludir, "psPool_match_list.txt"))
+
+# Run LULU using the match lists
+nopool.nochim.curated_result <- lulu(as.data.frame(npool.lulu), NoPool_match_list)
+pool.nochim.curated_result <- lulu(as.data.frame(pool.lulu), Pool_match_list)
+pspool.nochim.curated_result <- lulu(as.data.frame(pspool.lulu), psPool_match_list)
 
 ## Check out how many OTUs were collapsed:
 print(paste0("Not Pooled: ", "OTUs after Lulu: ", nopool.nochim.curated_result$curated_count, " --- ", "OTUs before Lulu: ", nrow(nopool.nochim.curated_result$original_table)))
@@ -697,13 +743,17 @@ df$alpha <- case_when(
   (df$sampletype != "Sample" & df$sampletype != "Positive"  ~ 1))
 
 ## plotting library sizes per replicate on a log scale - looking for nasty (i.e. large and sample like) values of control samples (except positive samples)
-ggplot(data=df, aes(x=Index, y=log(totseq), color=sampletype)) + geom_point(aes(alpha = alpha)) + #ylim(0,200000) +
+Fs2 <- ggplot(data=df, aes(x=Index, y=log(totseq), color=sampletype)) + geom_point(aes(alpha = alpha)) + #ylim(0,200000) +
   facet_grid(cols = vars(rep)) +
   ggtitle("Log library size per sample (points) per PCR replicate (panels)")
 
+pdf("Figures/FigureS2.pdf", width = 7, height = 5) 
+print(Fs2)
+dev.off()
+
 ggplot(data=df, aes(x=Index, y=totseq, color=sampletype)) + geom_point(aes(alpha = alpha)) + #ylim(0,200000) +
   facet_grid(cols = vars(rep)) +
-  ggtitle("Log library size per sample (points) per PCR replicate (panels)")
+  ggtitle("Library size per sample (points) per PCR replicate (panels)")
 
 ## For plate 1 we can see a problem with replicate 2 PCR - many of the control samples encroach in the sample library sizes and many sample library sizes are small
 
@@ -720,6 +770,14 @@ df$alpha <- case_when(
 ggplot(data=df, aes(x=Index, y=log(totseq), color=sampletype)) + geom_point(aes(alpha = alpha)) + #ylim(0,200000) +
   facet_grid(cols = vars(rep))+
   ggtitle("Log library size per sample (points) per PCR replicate (panels)")
+
+Fs3 <- ggplot(data=df, aes(x=Index, y=log(totseq), color=sampletype)) + geom_point(aes(alpha = alpha)) + #ylim(0,200000) +
+  facet_grid(cols = vars(rep)) +
+  ggtitle("Log library size per sample (points) per PCR replicate (panels)")
+
+pdf("Figures/FigureS3.pdf", width = 7, height = 5) 
+print(Fs3)
+dev.off()
 
 ## For plate 2 we can see a problem with replicate 4 PCR - Consistently very much smaller library sizes than the other PCR replicates
 ##checking again without log scale
@@ -841,14 +899,24 @@ p2data1.ntc <- lapply(p2data1.pr, ntc.change)
 ## Now to control for extraction blanks - function to 1) batch samples into their cycling group, then extraction batch 2) select the highest number of sequences in each OTU in the extraction bkank & 
 ## stubtract that number from the samples OTUs (if it exists there) & and make it so the lowest number in the OTUs is zero (prevent negative values)
 
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data")
-
-sample_data <- read.csv("sample_data.csv")
+sample_data <- read.csv("Raw_data/sample_data.csv")
 str(sample_data)
-
+str(sample.index.info)
+str(sample_data)
 # Here x is the list of matrices, y is the sample metadata (extract blank, experiment etc) - function to group by cycling group then extract blank
 ntc.to.blankcontrol <-  function (x){
   z = merge(sample.index.info, sample_data, by.x='fullminrep', by.y="newname2", all.x=TRUE)
+  z <- z %>%
+    mutate(name = ifelse(
+      name == "",                      # Needed to add the right fields in for the E_ samples
+      str_sub(full, 1, -3),           # as deficient from the sample data
+      name
+    )) %>%
+    mutate(name = ifelse(
+      str_starts(name, "E"),
+      paste0("E_", name),
+      name
+    ))
   z$full.name =  paste(substr(z$name,start=1,stop=2), z$full, sep = "")
   row.names(z) <- z$full.name
   z = merge(x, z, by =  'row.names', all.x=TRUE)
@@ -861,11 +929,16 @@ ntc.to.blankcontrol <-  function (x){
   return(z)
 }
 
+
+
+## Splitting samples into cycling groups, then DNA extract blank groups
+
 p1data1.ntc.exgroups <- lapply(p1data1.ntc, ntc.to.blankcontrol)
 p2data1.ntc.exgroups <- lapply(p2data1.ntc, ntc.to.blankcontrol)
 
 p1data1.ntc.exgroups <-  unlist(p1data1.ntc.exgroups, recursive=FALSE)
 p2data1.ntc.exgroups <-  unlist(p2data1.ntc.exgroups, recursive=FALSE)
+
 ## Sweep through cycling groups and extract blank groups and remove the largest value in each OTU that occurs in any Extract Control and subtract that from all samples in the cycling group:
 ## Function to do so:
 
@@ -929,8 +1002,8 @@ p2.ntc.excon <- combine_matrices_by_prefix(p2data1.ntc.excon1, prefix_patterns_p
 p1.ntc.excon.samples <- lapply(p1.ntc.excon, function(x) x[grep("S_", rownames(x)), ])
 p2.ntc.excon.samples <- lapply(p2.ntc.excon, function(x) x[grep("S_", rownames(x)), ])
 
-View(p1.ntc.excon.samples$p1seqtab.nochim)
-View(p2.ntc.excon.samples$p2seqtab.nochim)
+View(p1.ntc.excon.samples$p1pspool.lulu)
+View(p2.ntc.excon.samples$p2pspool.lulu)
 
 ## making lists where elements are individual samples and performing replicate control (i.e. only keeping OTUs in 1/3, 2/3 or 3/3 replicates)
 ## firstly a function to make sample-wise lists from current lists
@@ -1020,77 +1093,76 @@ R1joined <- join.plates(p1.ntc.excon.R1, p2.ntc.excon.R1)
 R2joined <- join.plates(p1.ntc.excon.R2, p2.ntc.excon.R2)
 R3joined <- join.plates(p1.ntc.excon.R3, p2.ntc.excon.R3)
 View(R1joined[[6]])
-write.csv(R2joined[[6]], "testing2rep.csv")
 View(R2joined[[6]])
-View(R3joined[[2]])
+View(R3joined[[6]])
 
 vecnames <- c("dada.nopool.nochim", "dada.pooled.nochim" , "dada.pspool.nochim", "dada.nopool.nc.lulu", "dada.pooled.nc.lulu", "dada.pspool.nc.lulu") 
 names(R1joined) <- vecnames
 names(R2joined) <- vecnames
 names(R3joined) <- vecnames
 
+str(R1joined)
 ## Now getting sequences in order to both assign species according to our reference library and also to blast the other sequences
 
-uniquesToFasta(as.matrix(R1joined[[1]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[1]])))))
-uniquesToFasta(as.matrix(R1joined[[2]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[2]])))))
-uniquesToFasta(as.matrix(R1joined[[3]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[3]])))))
-uniquesToFasta(as.matrix(R1joined[[4]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1lulu.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[4]])))))
-uniquesToFasta(as.matrix(R1joined[[5]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1lulu.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[5]])))))
-uniquesToFasta(as.matrix(R1joined[[6]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1lulu.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R1joined[[6]])))))
+# Set output directory and reference path (relative to project root)
+outdir <- file.path("Soil_eDNA_fasta_files")
+ref_fasta <- file.path("RefLibrary", "FASTA_POTURD.fasta")  # LFDP reference library is here
 
-uniquesToFasta(as.matrix(R2joined[[1]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[1]])))))
-uniquesToFasta(as.matrix(R2joined[[2]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[2]])))))
-uniquesToFasta(as.matrix(R2joined[[3]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[3]])))))
-uniquesToFasta(as.matrix(R2joined[[4]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2lulu.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[4]])))))
-uniquesToFasta(as.matrix(R2joined[[5]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2lulu.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[5]])))))
-uniquesToFasta(as.matrix(R2joined[[6]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2lulu.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R2joined[[6]])))))
+# Ensure output directory exists
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
 
-uniquesToFasta(as.matrix(R3joined[[1]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3dada.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[1]])))))
-uniquesToFasta(as.matrix(R3joined[[2]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3dada.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[2]])))))
-uniquesToFasta(as.matrix(R3joined[[3]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3dada.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[3]])))))
-uniquesToFasta(as.matrix(R3joined[[4]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3lulu.nopool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[4]])))))
-uniquesToFasta(as.matrix(R3joined[[5]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3lulu.pool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[5]])))))
-uniquesToFasta(as.matrix(R3joined[[6]]), fout="/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R3lulu.pspool.fasta", ids=paste0("OTU", seq(length(getSequences(R3joined[[6]])))))
+# Combine all joined data sets
+all_joined <- c(R1joined, R2joined, R3joined)
 
+# Define output FASTA file names
+fasta_names <- c(
+  paste0("R", rep(1:3, each = 6), c(
+    "dada.nopool", "dada.pool", "dada.pspool",
+    "lulu.nopool", "lulu.pool", "lulu.pspool"
+  ), ".fasta")
+)
 
-R1otupool.spc.d1 <- assignSpecies(getSequences(R1joined[[1]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R1otupool.spc.d2 <- assignSpecies(getSequences(R1joined[[2]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R1otupool.spc.d3 <- assignSpecies(getSequences(R1joined[[3]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R1otupool.spc.l4 <- assignSpecies(getSequences(R1joined[[4]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R1otupool.spc.l5 <- assignSpecies(getSequences(R1joined[[5]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R1otupool.spc.l6 <- assignSpecies(getSequences(R1joined[[6]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
+# Write FASTA files
+mapply(function(obj, fname) {
+  uniquesToFasta(
+    as.matrix(obj),
+    fout = file.path(outdir, fname),
+    ids = paste0("OTU", seq(length(getSequences(obj))))
+  )
+}, all_joined, fasta_names)
 
-R2otupool.spc.d1 <- assignSpecies(getSequences(R2joined[[1]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R2otupool.spc.d2 <- assignSpecies(getSequences(R2joined[[2]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R2otupool.spc.d3 <- assignSpecies(getSequences(R2joined[[3]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R2otupool.spc.l4 <- assignSpecies(getSequences(R2joined[[4]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R2otupool.spc.l5 <- assignSpecies(getSequences(R2joined[[5]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R2otupool.spc.l6 <- assignSpecies(getSequences(R2joined[[6]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-
-R3otupool.spc.d1 <- assignSpecies(getSequences(R3joined[[1]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R3otupool.spc.d2 <- assignSpecies(getSequences(R3joined[[2]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R3otupool.spc.d3 <- assignSpecies(getSequences(R3joined[[3]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R3otupool.spc.l4 <- assignSpecies(getSequences(R3joined[[4]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R3otupool.spc.l5 <- assignSpecies(getSequences(R3joined[[5]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
-R3otupool.spc.l6 <- assignSpecies(getSequences(R3joined[[6]]), "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/X204SC24022146-Z01-F001/01.RawData/FASTA_POTURD.fasta", allowMultiple=TRUE )
+# Assign species using reference file
+species_assignments <- lapply(all_joined, function(x) {
+  assignSpecies(getSequences(x), ref_fasta, allowMultiple = TRUE)
+})
 
 
-### getting a single matrix from list of samples (with single row)
-R1SppAssList <- list(R1otupool.spc.d1, R1otupool.spc.d2,R1otupool.spc.d3, R1otupool.spc.l4, R1otupool.spc.l5, R1otupool.spc.l6)
-names(R1SppAssList)<- vecnames
+######
+##### START    HERE
+#####
 
-R2SppAssList <- list(R2otupool.spc.d1, R2otupool.spc.d2,R2otupool.spc.d3, R2otupool.spc.l4, R2otupool.spc.l5, R2otupool.spc.l6)
-names(R2SppAssList)<- vecnames
+names(species_assignments) <- paste0("R", rep(1:3, each = 6), c(
+  "otupool.spc.d1", "otupool.spc.d2", "otupool.spc.d3",
+  "otupool.spc.l4", "otupool.spc.l5", "otupool.spc.l6"
+))
 
+# Split into R1, R2 replicate filtering groups (first 6, second 6 - not worrying about R3 filtering)
+R1SppRawList <- species_assignments[1:6]
+R2SppRawList <- species_assignments[7:12]
 
+# Add names
+names(R1SppRawList) <- vecnames
+names(R2SppRawList) <- vecnames
+
+# Preprocessing: convert to data.frame and add OTU column
 getunassignedprep <- function(x) {
   x <- as.data.frame(x)
   x$OTU <- paste0("OTU", seq(nrow(x)))
   return(x)
 }
 
-R1SppAssListprep <- lapply(R1SppAssList, getunassignedprep)
-R2SppAssListprep <- lapply(R2SppAssList, getunassignedprep)
+R1SppAssListprep <- lapply(R1SppRawList, getunassignedprep)
+R2SppAssListprep <- lapply(R2SppRawList, getunassignedprep)
 
 ## getting assigned and unassigned
 speciesassigned <- function(x){
@@ -1117,41 +1189,83 @@ R1SppUnAssList <- lapply(R1SppAssListprep, no.speciesassigned.to.fasta)
 R2SppAssList <- lapply(R2SppAssListprep, speciesassigned)
 R2SppUnAssList <- lapply(R2SppAssListprep, no.speciesassigned.to.fasta)
 
-R1blast.d1 <- uniquesToFasta(R1SppUnAssList$dada.nopool.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.nopool.nochim.nospec1.fasta", ids=R1SppUnAssList$dada.nopool.nochim$OTU)
-R1blast.d2 <- uniquesToFasta(R1SppUnAssList$dada.pooled.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pool.nochim.nospec1.fasta", ids=R1SppUnAssList$dada.pooled.nochim$OTU)
-R1blast.d3 <- uniquesToFasta(R1SppUnAssList$dada.pspool.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pspool.nochim.nospec1.fasta", ids=R1SppUnAssList$dada.pspool.nochim$OTU)
-R1blast.l4 <- uniquesToFasta(R1SppUnAssList$dada.nopool.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.nopool.nc.lulu.nospec1.fasta", ids=R1SppUnAssList$dada.nopool.nc.lulu$OTU)
-R1blast.l5 <- uniquesToFasta(R1SppUnAssList$dada.pooled.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pool.nc.lulu.nospec1.fasta", ids=R1SppUnAssList$dada.pooled.nc.lulu$OTU)
-R1blast.l6 <- uniquesToFasta(R1SppUnAssList$dada.pspool.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R1dada.pspool.nc.lulu.nospec1.fasta", ids=R1SppUnAssList$dada.pspool.nc.lulu$OTU)
+## Now extracting all unassigned (not matching LFDP 100%) sequences for BLAST 
 
-R2blast.d1 <- uniquesToFasta(R2SppUnAssList$dada.nopool.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.nopool.nochim.nospec1.fasta", ids=R2SppUnAssList$dada.nopool.nochim$OTU)
-R2blast.d2 <- uniquesToFasta(R2SppUnAssList$dada.pooled.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pool.nochim.nospec1.fasta", ids=R2SppUnAssList$dada.pooled.nochim$OTU)
-R2blast.d3 <- uniquesToFasta(R2SppUnAssList$dada.pspool.nochim, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pspool.nochim.nospec1.fasta", ids=R2SppUnAssList$dada.pspool.nochim$OTU)
-R2blast.l4 <- uniquesToFasta(R2SppUnAssList$dada.nopool.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.nopool.nc.lulu.nospec1.fasta", ids=R2SppUnAssList$dada.nopool.nc.lulu$OTU)
-R2blast.l5 <- uniquesToFasta(R2SppUnAssList$dada.pooled.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pool.nc.lulu.nospec1.fasta", ids=R2SppUnAssList$dada.pooled.nc.lulu$OTU)
-R2blast.l6 <- uniquesToFasta(R2SppUnAssList$dada.pspool.nc.lulu, fout= "/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data/R2dada.pspool.nc.lulu.nospec1.fasta", ids=R2SppUnAssList$dada.pspool.nc.lulu$OTU)
+# Define output directory
+fasta_dir <- file.path("Soil_eDNA_fasta_files", "Non-LFDP-seqs")
+dir.create(fasta_dir, recursive = TRUE, showWarnings = FALSE)
 
+# Export unassigned OTUs for R1
+R1blast.d1 <- uniquesToFasta(R1SppUnAssList$dada.nopool.nochim, 
+                             fout = file.path(fasta_dir, "R1dada.nopool.nochim.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.nopool.nochim$OTU)
+
+R1blast.d2 <- uniquesToFasta(R1SppUnAssList$dada.pooled.nochim, 
+                             fout = file.path(fasta_dir, "R1dada.pooled.nochim.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.pooled.nochim$OTU)
+
+R1blast.d3 <- uniquesToFasta(R1SppUnAssList$dada.pspool.nochim, 
+                             fout = file.path(fasta_dir, "R1dada.pspool.nochim.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.pspool.nochim$OTU)
+
+R1blast.l4 <- uniquesToFasta(R1SppUnAssList$dada.nopool.nc.lulu, 
+                             fout = file.path(fasta_dir, "R1dada.nopool.nc.lulu.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.nopool.nc.lulu$OTU)
+
+R1blast.l5 <- uniquesToFasta(R1SppUnAssList$dada.pooled.nc.lulu, 
+                             fout = file.path(fasta_dir, "R1dada.pooled.nc.lulu.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.pooled.nc.lulu$OTU)
+
+R1blast.l6 <- uniquesToFasta(R1SppUnAssList$dada.pspool.nc.lulu, 
+                             fout = file.path(fasta_dir, "R1dada.pspool.nc.lulu.nospec1.fasta"),
+                             ids = R1SppUnAssList$dada.pspool.nc.lulu$OTU)
+
+# Export unassigned OTUs for R2
+R2blast.d1 <- uniquesToFasta(R2SppUnAssList$dada.nopool.nochim, 
+                             fout = file.path(fasta_dir, "R2dada.nopool.nochim.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.nopool.nochim$OTU)
+
+R2blast.d2 <- uniquesToFasta(R2SppUnAssList$dada.pooled.nochim, 
+                             fout = file.path(fasta_dir, "R2dada.pooled.nochim.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.pooled.nochim$OTU)
+
+R2blast.d3 <- uniquesToFasta(R2SppUnAssList$dada.pspool.nochim, 
+                             fout = file.path(fasta_dir, "R2dada.pspool.nochim.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.pspool.nochim$OTU)
+
+R2blast.l4 <- uniquesToFasta(R2SppUnAssList$dada.nopool.nc.lulu, 
+                             fout = file.path(fasta_dir, "R2dada.nopool.nc.lulu.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.nopool.nc.lulu$OTU)
+
+R2blast.l5 <- uniquesToFasta(R2SppUnAssList$dada.pooled.nc.lulu, 
+                             fout = file.path(fasta_dir, "R2dada.pooled.nc.lulu.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.pooled.nc.lulu$OTU)
+
+R2blast.l6 <- uniquesToFasta(R2SppUnAssList$dada.pspool.nc.lulu, 
+                             fout = file.path(fasta_dir, "R2dada.pspool.nc.lulu.nospec1.fasta"),
+                             ids = R2SppUnAssList$dada.pspool.nc.lulu$OTU)
 ## Blasted sequences not assigned with reference library (used blast nt_euk database), imported to MEGAN, used naive LCA algorithm 
-## with a 0.95 min identity cut off to find the lowest common ancestor from BLAST matches
+## with a 98.0 min percent identity cut off to find the lowest common ancestor from BLAST matches, and made the lowest LCA taxon to genus
 
 ## exported taxID of LCA outcome and output below:
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data")
 
-R1blast.d1.m <-  read.csv("R1dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.d2.m <-  read.csv("R1dada.pool.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.d3.m <-  read.csv("R1dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.l4.m <-  read.csv("R1dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R1blast.l5.m <-  read.csv("R1dada.pool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R1blast.l6.m <-  read.csv("R1dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.d1.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.d2.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.d3.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.l4.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.l5.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.l6.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
 
-R2blast.d1.m <-  read.csv("R2dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.d2.m <-  read.csv("R2dada.pool.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.d3.m <-  read.csv("R2dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.l4.m <-  read.csv("R2dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R2blast.l5.m <-  read.csv("R2dada.pool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R2blast.l6.m <-  read.csv("R2dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.d1.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.d2.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.d3.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.l4.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.l5.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.l6.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
 
-setwd("/Users/glennd/Downloads") ## where my locally constrcuted DB is
+
+######## The commented out parts below need to be run to install the libraries to get NCBI taxonomy from MEGAN LCA results
+#setwd("/Users/glennd/Downloads") ## where my locally constrcuted DB is
 ## Used locally constructured sql database for taxonomy
 #install.packages("taxonomizr")
 #install.packages("taxize")
@@ -1161,17 +1275,17 @@ library("taxonomizr")
 library("taxize")
 library("taxizedb")
 ####
-#### ONLY RUN BELOW ONCE TO CONSTRUCT TAXONOMY DB
+#### ONLY RUN BELOW ONCE TO CONSTRUCT NCBI TAXONOMY DB  - this database needs to be placed in the TaxonomyDB folder of the repo
 #prepareDatabase('accessionTaxa.sql') ## database prepared in Downloads directory
 ####
 ####
-setwd("/Users/glennd/Downloads")
+## where my locally constrcuted DB is
 #function to prepare taxID tables and return taxonomy
 colrowtax <- function(x){
   lahs <- x
   colnames(lahs) <- c("OTU","taxID")
   lahs1 <- lahs
-  lahs<-getTaxonomy(lahs[,2],'accessionTaxa.sql')
+  lahs<-getTaxonomy(lahs[,2],'TaxonomyFiles/accessionTaxa.sql')
   rownames(lahs) <- lahs1$OTU
   return(lahs)
 }
@@ -1185,27 +1299,24 @@ names(R2all.blast.megan) <-  vecnames
 
 R1all.blast.megan.tax <-  lapply(R1all.blast.megan, colrowtax)
 R2all.blast.megan.tax <-  lapply(R2all.blast.megan, colrowtax) 
-head(R1all.blast.megan.tax$dada.nopool.nochim)
+
+View(R1all.blast.megan.tax$dada.pooled.nochim) # Inspecting
 
 ## reading in our RefLib TaxIDs to get their taxonomy to parse with Genbank Taxonomy and Megan results
 
-
 View(R1SppAssList$dada.nopool.nochim)
 
-
 ## Changed (ref-taxIDs.csv) this with nex TaxIDs as per Bobs curation update April 8, 2024
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data")
-reflbids <- read.csv("ref-taxIDs1.csv")
+reflbids <- read.csv("TaxonomyFiles/ref-taxIDs1.csv")
 reflbids <-unique(reflbids)
 reflbids <-reflbids[,c(1,2)]
 str(reflbids)
 
-setwd("/Users/glennd/Downloads")
-reflbids1 <-  colrowtax(reflbids)
+reflbids1 <-  colrowtax(reflbids) ## Getting NCBI taxonomy from NCBI TaxIDs
 head(reflbids1)
 reflbids1 <-  as.data.frame(reflbids1)
 ## preparing to parse RifLib and Genbank dataframes - ## No OTU (row names) numbers are matched to POTUs in reflbids1 table
-str(SppAssList$dada.nopool.nochim)
+str(R1SppAssList$dada.nopool.nochim)
 reflbids1$Genus <- rownames(reflbids1)
 View(reflbids1)
 
@@ -1213,9 +1324,9 @@ R1SppAssList <- lapply(R1SppAssList, function(x) merge(x, reflbids1, by = "Genus
 R2SppAssList <- lapply(R2SppAssList, function(x) merge(x, reflbids1, by = "Genus", all.x = TRUE))
 
 library(rlist)
-setwd("/Users/glennd/Documents/GitHub/legenDNAry")
-list.save(R1SppAssList, 'Raw_data/Reference_library_filtering/OTU-to-RefIDs-List_R1.rds')
-list.save(R2SppAssList, 'Raw_data/Reference_library_filtering/OTU-to-RefIDs-List_R2.rds')
+
+list.save(R1SppAssList, 'Processed_data/OTU-to-RefIDs-List_R1.rds')
+list.save(R2SppAssList, 'Processed_data/OTU-to-RefIDs-List_R2.rds')
 
 View(R1SppAssList$dada.pspool.nc.lulu)
 View(R2SppAssList$dada.pspool.nc.lulu)
@@ -1234,10 +1345,14 @@ str(R2SppAssList$dada.nopool.nochim)
 ## Genbanktax
 R1all.blast.megan.tax <- lapply(R1all.blast.megan.tax, function(x) as.data.frame(x))
 R2all.blast.megan.tax <- lapply(R2all.blast.megan.tax, function(x) as.data.frame(x))
-head(R1all.blast.megan.tax$R1blast.dnp.m, n = 20)
+
+View(R1all.blast.megan.tax$dada.pspool.nc.lulu)
+
 library(tibble)
+
 R1all.blast.megan.tax <- lapply(R1all.blast.megan.tax, function(x) tibble::rownames_to_column(x, var = "OTU"))
 R2all.blast.megan.tax <- lapply(R2all.blast.megan.tax, function(x) tibble::rownames_to_column(x, var = "OTU"))
+
 str(R2all.blast.megan.tax$dada.nopool.nochim)
 ## need to add sequences back to these tables megan taxonmy tables
 #View(SppUnAssList$dada.nopool.nochim)
@@ -1250,12 +1365,16 @@ merge_function <- function(x, y) {
 # Merge lists
 R1SppUnAssList <- Map(merge_function, R1all.blast.megan.tax, R1SppUnAssList)
 R2SppUnAssList <- Map(merge_function, R2all.blast.megan.tax, R2SppUnAssList)
+
 library(textshape)
+
 R1SppUnAssList <- lapply(R1SppUnAssList, function(x) textshape::column_to_rownames(x, loc = "sequence"))
 R2SppUnAssList <- lapply(R2SppUnAssList, function(x) textshape::column_to_rownames(x, loc = "sequence"))
+
 ##both lists are the same structure etc
 head(R1SppAssList$dada.nopool.nochim)
 head(R1SppUnAssList$dada.nopool.nochim)
+
 ## adding ID source column
 R1SppAssList <- mapply(cbind, R1SppAssList, "idsource"="RefLib", SIMPLIFY=F)
 R2SppAssList <- mapply(cbind, R2SppAssList, "idsource"="RefLib", SIMPLIFY=F)
@@ -1269,7 +1388,7 @@ R2all.taxs.source <- purrr::map2(R2SppAssList,R2SppUnAssList,rbind)
 R1all.taxs.source.otu <- lapply(R1all.taxs.source, function(x) textshape::column_to_rownames(x, loc = "OTU"))
 R2all.taxs.source.otu <- lapply(R2all.taxs.source, function(x) textshape::column_to_rownames(x, loc = "OTU"))
 
-View(all.taxs.source.otu$dada.nopool.nochim)
+View(all.taxs.source.otu)
 
 ## all.taxs is just the relevant columns for a phyloseq object
 R1all.tax <- lapply(R1all.taxs.source.otu, function(x) as.matrix(x[,c(1:7)]))
@@ -1280,21 +1399,21 @@ View(R1all.tax$dada.nopool.nochim)
 View(sample_data)
 row.names(sample_data) <- sample_data$newname2
 ## Getting sequence data in right format:
-setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data")
-library(Biostrings)
-R1dnp_seq <- readDNAStringSet("R1dada.nopool.fasta")
-R1dp_seq <- readDNAStringSet("R1dada.pool.fasta")
-R1dpsp_seq <- readDNAStringSet("R1dada.pspool.fasta")
-R1dlnp_seq <- readDNAStringSet("R1lulu.nopool.fasta")
-R1dlp_seq <- readDNAStringSet("R1lulu.pool.fasta")
-R1dlpsp_seq <- readDNAStringSet("R1lulu.pspool.fasta")
 
-R2dnp_seq <- readDNAStringSet("R2dada.nopool.fasta")
-R2dp_seq <- readDNAStringSet("R2dada.pool.fasta")
-R2dpsp_seq <- readDNAStringSet("R2dada.pspool.fasta")
-R2dlnp_seq <- readDNAStringSet("R2lulu.nopool.fasta")
-R2dlp_seq <- readDNAStringSet("R2lulu.pool.fasta")
-R2dlpsp_seq <- readDNAStringSet("R2lulu.pspool.fasta")
+library(Biostrings)
+R1dnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.nopool.fasta")
+R1dp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.pool.fasta")
+R1dpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.pspool.fasta")
+R1dlnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.nopool.fasta")
+R1dlp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.pool.fasta")
+R1dlpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.pspool.fasta")
+
+R2dnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.nopool.fasta")
+R2dp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.pool.fasta")
+R2dpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.pspool.fasta")
+R2dlnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.nopool.fasta")
+R2dlp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.pool.fasta")
+R2dlpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.pspool.fasta")
 
 #test <- read.fasta("dada.nopool.fasta")
 #row.names(dnp_seq) <- dnp_seq$seq.name
@@ -1318,7 +1437,7 @@ make.phylo <- function (x, y, z){ # x = OTU data to this point, y = taxonomic da
   return(wanted)
 }
 
-sample_data <- read.csv("sample_data_v2.csv")
+sample_data <- read.csv("Raw_data/sample_data_v2.csv")
 rownames(sample_data) <- sample_data$newname2
 R1dnp <- make.phylo(R1joined[[1]], R1all.tax[[1]], sample_data)
 R1dp <- make.phylo(R1joined[[2]], R1all.tax[[2]], sample_data)
@@ -1357,6 +1476,36 @@ R2phylo.plants <- lapply(R2phylo.plants, function (x) phyloseq_validate(x, remov
 
 
 ## Now fixing up taxonomy tables so that entires go all the way out to species (no NAs and each different OTU of the same Taxa is numbered)
+## Removing the superfluous "domain" field from the tax_table - now that it is only plants
+
+R1phylo.plants <- lapply(R1phylo.plants, function(x) {
+  # Extract the taxonomy table and remove the "domain" column
+  tax <- tax_table(x)
+  tax <- tax[, colnames(tax) != "domain", drop = FALSE]
+  
+  # Rebuild the phyloseq object with the updated taxonomy
+  phyloseq(
+    otu_table(x),
+    sample_data(x),
+    tax_table(tax),
+    refseq(x)
+  )
+})
+
+R2phylo.plants <- lapply(R2phylo.plants, function(x) {
+  # Extract the taxonomy table and remove the "domain" column
+  tax <- tax_table(x)
+  tax <- tax[, colnames(tax) != "domain", drop = FALSE]
+  
+  # Rebuild the phyloseq object with the updated taxonomy
+  phyloseq(
+    otu_table(x),
+    sample_data(x),
+    tax_table(tax),
+    refseq(x)
+  )
+})
+
 
 R1phylo.plants.tax <- lapply(R1phylo.plants, function (x) tax_fix(x,
   min_length = 4,
@@ -1372,7 +1521,7 @@ R2phylo.plants.tax <- lapply(R2phylo.plants, function (x) tax_fix(x,
 
 ## adding another level of OTU taxonomy to distinguish between different OTUs
 ## <- lapply(all.blast.megan.tax, function(x) tibble::rownames_to_column(x, var = "OTU"))
-remotes::install_github("mikemc/speedyseq")
+remotes::install_github("mikemc/speedyseq") ## install this package if required
 library(speedyseq)
 
 R1phylo.plants.tax <- lapply(R1phylo.plants.tax, function (x) {
@@ -1393,20 +1542,31 @@ p <- ggplot(as.data.frame(df), aes(x = 1, y = df)) +
   geom_violin(trim=FALSE)
 p + geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
 
-## We can drop samples with >10000 sequences in total (Probably 20,000 is better)
+## We can drop samples with >10000 sequences in total
 View(sample_data(R1phylo.plants.tax$R1.dada.nopool))
 R1phylo.plants.tax <- lapply(R1phylo.plants.tax, function (x) subset_samples(x, newname2 != "C24_P2"))
+R1phylo.plants.tax <- lapply(R1phylo.plants.tax, function (x) subset_samples(x, newname2 != "C22_P1"))
 R1phylo.plants.tax <- lapply(R1phylo.plants.tax, function (x) subset_samples(x, newname2 != "C183_P1"))
+R1phylo.plants.tax <- lapply(R1phylo.plants.tax, function (x) subset_samples(x, newname2 != "C83_P1"))
+
 R2phylo.plants.tax <- lapply(R2phylo.plants.tax, function (x) subset_samples(x, newname2 != "C24_P2"))
+R2phylo.plants.tax <- lapply(R2phylo.plants.tax, function (x) subset_samples(x, newname2 != "C22_P1"))
 R2phylo.plants.tax <- lapply(R2phylo.plants.tax, function (x) subset_samples(x, newname2 != "C183_P1"))
+R2phylo.plants.tax <- lapply(R2phylo.plants.tax, function (x) subset_samples(x, newname2 != "C83_P1"))
+
+
 
 #################################################################################################################
 ##################################################################################################
 ###########################################################################################
-### Note - here R environment saved as "CescPRdata.RData"--
-#save.image("CescPRdata_v2.RData")
-# setwd("/Users/glennd/Documents/Cesc-PR-eDNA/Soil_eDNA_data")
+### Note - here R environment saved as "Phyloseq_processed_PRdata.RData"--
+save.image("Processed_data/Phyloseq_processed_PRdata.RData")
+######### IMPORTANT: If continuing from past this point, this workspace image can be loaded with all objects. 
+######### Otherwise, if interested in reproducing analyses from raw data, the above code can be run.
 
+### Workspace can be loaded with: load("Processed_data/Phyloseq_processed_PRdata.RData") 
+
+#
 # If loading from here all libraries used above need reloading...
 library(dada2)
 library(textshape)
@@ -1424,6 +1584,12 @@ library(ggExtra)
 library(ggplotify)
 library(ggpubr)
 library(iNEXT)
+
+
+
+################################################
+#################################################
+
 
 # Load data from above
 load("Raw_data/CescPRdata_v2.RData") # - remove first # to load environment.. 
