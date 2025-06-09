@@ -890,7 +890,7 @@ library(dada2)
 tempalldat <-mergeSequenceTables(p1data1[[6]], p2data1[[6]])
 allindexinfo <- rbind(p1pspool.lulu.index, p2pspool.lulu.index)
 ## loading metadata on samples in PNAS study only
-tempsamps <- read.csv("Processed_data/sample_dataPNAS.csv")
+tempsamps <- read.csv("Raw_data/sample_dataPNAS.csv")
 # Get row names from tempalldat
 tempall_rows <- rownames(tempalldat)
 
@@ -1011,7 +1011,7 @@ p2data1.ntc <- lapply(p2data1.pr, ntc.change)
 ## Now to control for extraction blanks - function to 1) batch samples into their cycling group, then extraction batch 2) select the highest number of sequences in each OTU in the extraction bkank & 
 ## stubtract that number from the samples OTUs (if it exists there) & and make it so the lowest number in the OTUs is zero (prevent negative values)
 
-sample_data <- read.csv("Raw_data/sample_data.csv")
+sample_data <- read.csv("Raw_data/ExtractionBlankControl.csv")
 str(sample_data)
 str(sample.index.info)
 str(sample_data)
@@ -1217,7 +1217,7 @@ str(R1joined)
 ## Now getting sequences in order to both assign species according to our reference library and also to blast the other sequences
 
 # Set output directory and reference path (relative to project root)
-outdir <- file.path("Soil_eDNA_fasta_files")
+outdir <- file.path("Processed_data/Processed_data/Soil_eDNA_fasta_files")
 ref_fasta <- file.path("RefLibrary", "FASTA_POTURD.fasta")  # LFDP reference library is here
 
 # Ensure output directory exists
@@ -1304,7 +1304,7 @@ R2SppUnAssList <- lapply(R2SppAssListprep, no.speciesassigned.to.fasta)
 ## Now extracting all unassigned (not matching LFDP 100%) sequences for BLAST 
 
 # Define output directory
-fasta_dir <- file.path("Soil_eDNA_fasta_files", "Non-LFDP-seqs")
+fasta_dir <- file.path("Processed_data/Soil_eDNA_fasta_files", "Non-LFDP-seqs")
 dir.create(fasta_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Export unassigned OTUs for R1
@@ -1361,19 +1361,19 @@ R2blast.l6 <- uniquesToFasta(R2SppUnAssList$dada.pspool.nc.lulu,
 
 ## exported taxID of LCA outcome and output below:
 
-R1blast.d1.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.d2.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.d3.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
-R1blast.l4.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R1blast.l5.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
-R1blast.l6.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.d1.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.d2.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.d3.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
+R1blast.l4.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.l5.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
+R1blast.l6.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R1dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
 
-R2blast.d1.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.d2.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.d3.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
-R2blast.l4.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
-R2blast.l5.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
-R2blast.l6.m <-  read.csv("Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.d1.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.d2.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.d3.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nochim.nospec1-ex.txt", header =FALSE)
+R2blast.l4.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.nopool.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.l5.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pooled.nc.lulu.nospec1-ex.txt", header =FALSE)
+R2blast.l6.m <-  read.csv("Processed_data/Soil_eDNA_fasta_files/Non-LFDP-seqs/R2dada.pspool.nc.lulu.nospec1-ex.txt", header =FALSE)
 
 
 ######## The commented out parts below need to be run to install the libraries to get NCBI taxonomy from MEGAN LCA results
@@ -1513,19 +1513,19 @@ row.names(sample_data) <- sample_data$newname2
 ## Getting sequence data in right format:
 
 library(Biostrings)
-R1dnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.nopool.fasta")
-R1dp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.pool.fasta")
-R1dpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1dada.pspool.fasta")
-R1dlnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.nopool.fasta")
-R1dlp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.pool.fasta")
-R1dlpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R1lulu.pspool.fasta")
+R1dnp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1dada.nopool.fasta")
+R1dp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1dada.pool.fasta")
+R1dpsp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1dada.pspool.fasta")
+R1dlnp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1lulu.nopool.fasta")
+R1dlp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1lulu.pool.fasta")
+R1dlpsp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R1lulu.pspool.fasta")
 
-R2dnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.nopool.fasta")
-R2dp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.pool.fasta")
-R2dpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2dada.pspool.fasta")
-R2dlnp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.nopool.fasta")
-R2dlp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.pool.fasta")
-R2dlpsp_seq <- readDNAStringSet("Soil_eDNA_fasta_files/R2lulu.pspool.fasta")
+R2dnp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2dada.nopool.fasta")
+R2dp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2dada.pool.fasta")
+R2dpsp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2dada.pspool.fasta")
+R2dlnp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2lulu.nopool.fasta")
+R2dlp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2lulu.pool.fasta")
+R2dlpsp_seq <- readDNAStringSet("Processed_data/Soil_eDNA_fasta_files/R2lulu.pspool.fasta")
 
 #test <- read.fasta("dada.nopool.fasta")
 #row.names(dnp_seq) <- dnp_seq$seq.name
@@ -1549,7 +1549,7 @@ make.phylo <- function (x, y, z){ # x = OTU data to this point, y = taxonomic da
   return(wanted)
 }
 
-sample_data <- read.csv("Raw_data/sample_data_v2.csv")
+sample_data <- read.csv("Raw_data/sample_data_phyloseq.csv")
 rownames(sample_data) <- sample_data$newname2
 R1dnp <- make.phylo(R1joined[[1]], R1all.tax[[1]], sample_data)
 R1dp <- make.phylo(R1joined[[2]], R1all.tax[[2]], sample_data)

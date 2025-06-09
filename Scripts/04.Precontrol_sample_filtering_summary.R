@@ -7,7 +7,7 @@ precleanp2 <- p2data1.pr$p2pspool.lulu
 str(precleanp1)
 str(precleanp2)
 
-sample_dataPNAS <- read.csv("Processed_data/sample_dataPNAS.csv")
+sample_dataPNAS <- read.csv("Raw_data/sample_dataPNAS.csv")
 str(sample_dataPNAS)
 
 ## need to remove samples that do not appear in this study
