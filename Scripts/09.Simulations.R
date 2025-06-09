@@ -1,9 +1,5 @@
 ##########################################
-##########################################
-##########################################
-### SIMULATION TO SEE HOW GOOD EDNA NEEDS TO BE IN ORDER TO GET 'GOOD' CONFUSION MATRIX STATS
-##########################################
-##########################################
+### SIMULATION TO VALIDATE NULL MODEL APPROACH
 ##########################################
 
 
@@ -15,9 +11,6 @@
 
 # Load stem data
 stem.23 <- readRDS("Processed_data/stem-soil-40pt-data-lenient_10k-20250405.RDA")[[2]]
-
-# If using empirical eDNA, load here and convert to presence-absence matrix
-dnamat_empirical <- 1*(readRDS("Processed_data/stem-soil-40pt-data-lenient_10k-20250405.RDA")[[1]]>0)
 
 # Get number of sample points to use as "observed", leaving 999 "random" points
 nrand <- 999
@@ -41,52 +34,23 @@ ses <- function(obs, rand){
 }
 
 #####################
-### Find gOTUS to drop
+### Find OTUS to drop
 #####################
 
-### Drop all gOTUs that make up < 10% of total cumulative abundance
-# drops <- rownames(lfdp23)[lfdp23$cumprop < 0.1]
+### Don't drop anything (Sim 1a and 1b)
+# drops <- NULL
 
-### Drop all gOTUs that make up < 25% of total cumulative abundance
-# drops <- rownames(lfdp23)[lfdp23$cumprop < 0.25]
-
-### Drop the 5 most common gOTUs
+### Drop the 5 most common gOTUs (Sim 2 - Dominant taxa removal)
 # drops <- rownames(lfdp23)[order(lfdp23$total_abund, decreasing=T)][1:5]
 
-### Drop all gOTUs that make up the lower 25% of total cumulative basal area
-# lfdp23 <- lfdp23[order(lfdp23$total_ba, decreasing=F),]
-# lfdp23$cumprop_ba <- round(cumsum(lfdp23$total_ba)/sum(lfdp23$total_ba), 3)
-# drops <- rownames(lfdp23)[lfdp23$cumprop_ba <= 0.05]
-
-### Drop the 5 most common gOTUs in terms of basal area
-# drops <- rownames(lfdp23)[order(lfdp23$total_ba, decreasing=T)][1:5]
-
-### Drop all false presences at 5m scale
-# dnamat_empirical <- dnamat_empirical[match(rownames(samp.abun.pa$`5`), rownames(dnamat_empirical)),]
-# dnamat_empirical <- dnamat_empirical[!is.na(rownames(dnamat_empirical)),]
-# dnamat_empirical[dnamat_empirical==1 & samp.abun.pa$`15`==0] <- 0
-
-### Drop all false absences at 5m scale
-# dnamat_empirical <- dnamat_empirical[match(rownames(samp.abun.pa$`5`), rownames(dnamat_empirical)),]
-# dnamat_empirical <- dnamat_empirical[!is.na(rownames(dnamat_empirical)),]
-# dnamat_empirical[dnamat_empirical==0 & samp.abun.pa$`5`==1] <- 1
-
-### Don't drop anything
-drops <- NULL
+### Drop OTUs that make up lower 10% of total basal area (Sim 3 - Rare taxa removal)
+lfdp23 <- lfdp23[order(lfdp23$total_ba, decreasing=F),]
+lfdp23$cumprop_ba <- round(cumsum(lfdp23$total_ba)/sum(lfdp23$total_ba), 3)
+drops <- rownames(lfdp23)[lfdp23$cumprop_ba <= 0.10]
 
 ### What is % total basal area of dropped taxa?
 round(sum(lfdp23$total_ba[rownames(lfdp23) %in% drops]) /  sum(lfdp23$total_ba), 2)
 length(drops)
-
-#####################
-### Find gOTUS to add
-#####################
-
-### Add the 5 most common gOTUs in terms of basal area to all samples
-# adds <- rownames(lfdp23)[order(lfdp23$total_ba, decreasing=T)][1:5]
-
-### Don't add anything!
-adds <- NULL
 
 
 #####################
@@ -94,16 +58,10 @@ adds <- NULL
 #####################
 
 ### Choose the starting DNA community (e.g., 100% match with the 5 m census)
-samp.dna.pa <- samp.abun.pa$`5`
+samp.dna.pa <- samp.abun.pa$`25`
 
 ### Impose undetected species (drops from above)
 samp.dna.pa[,drops] <- samp.dna.pa[,drops] * 0
-
-### Impose the falsely detected species (adds from above)
-# samp.dna.pa[,adds] <- 1
-
-### - OR - use the modified from above 'empirical eDNA' matrix
-# samp.dna.pa <- dnamat_empirical
 
 #####################
 ### Run the simulation
@@ -175,114 +133,90 @@ for (r in 1:20) {
 ### Save output
 #####################
 
-dir.create("Processed_data/Simulation/")
-
 saveRDS(list(conf_stats_obs_list=conf_stats_obs_list, 
              conf_stats_ses_list=conf_stats_ses_list), 
-        file="Processed_data/Simulation/Sim_output_25mref-droplower5cumsum-20250526.RDA")
+        file="Processed_data/Simulation/Sim3-RareTaxaRemoval-20250609.RDA")
 
 
-###### Names of previous saved simulation output files ######
-
-## NO DROPS NOR ADDS (perfect sampling simulation)
-"Processed_data/Sim_output_5meDNA-5to100m-20250307.RDA" # Match to 5 m community
-"Processed_data/Sim_output_30meDNA-5to100m-20250307.RDA" # Match to 30 m community
-
-## DROPS simulations
-"Processed_data/Sim_output_25m-nodrops-20250305.RDA"
-"Processed_data/Sim_output_5m-nodrops-20250305.RDA"
-"Processed_data/Sim_output_5m-droplower10cumsum-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-droplower25cumsum-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-drop5topgOTUs-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-droplower25cumsumBA-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-drop5topgOTUs-BA-5to30m-20250305.RDA"
-"Processed_data/Sim_output_25mref-drop5topgOTUs-20250526.RDA"
-"Processed_data/Sim_output_25mref-droplower25cumsum-20250526.RDA"
-"Processed_data/Sim_output_25mref-droplower20cumsum-20250526.RDA"
-"Processed_data/Sim_output_25mref-droplower10cumsum-20250526.RDA"
-focsim <- "Processed_data/Sim_output_25mref-droplower5cumsum-20250526.RDA"
-
-## ADDS simulations
-"Processed_data/Sim_output_5m-add5topgOTUs-BA-5to30m-20250305.RDA"
-
-## ADD + DROP simulations
-"Processed_data/Sim_output_5m-add5topgOTUsBA-droplower10pctBA-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-add5topgOTUsBA-droplower25pctBA-5to30m-20250305.RDA"
-"Processed_data/Sim_output_5m-add5topgOTUsBA-droplower25pctBA-5to50m-20250305.RDA"
-"Processed_data/Sim_output_5m-add5topgOTUsBA-droplower25pctBA-5to100m-20250305.RDA"
-
-## NO FP simulations
-"Processed_data/Sim_output_noFP_5m-20250523.RDA"
-"Processed_data/Sim_output_noFP_10m-20250523.RDA"
-"Processed_data/Sim_output_noFP_15m-20250523.RDA"
-
-## NO FA simulations
-"Processed_data/Sim_output_noFA_5m-20250523.RDA"
-"Processed_data/Sim_output_noFA_15m-20250523.RDA"
-
-conf_stats_obs_list <- readRDS(focsim)[[1]]
-conf_stats_ses_list <- readRDS(focsim)[[2]]
 
 #####################
 ### Plot it!
 #####################
 
-par(mfcol=c(3,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
+files <- c("Processed_data/Simulation/Sim1a-5mRef-20250609.RDA",
+           "Processed_data/Simulation/Sim1b-25mRef-20250609.RDA",
+           "Processed_data/Simulation/Sim2-DomTaxaRemoval-20250609.RDA",
+           "Processed_data/Simulation/Sim3-RareTaxaRemoval-20250609.RDA")
 
-# cols <- rev(viridis::viridis(20))
-cols <- rev(viridis::viridis(length(conf_stats_obs_list)))
-
-focdist <- 5
-
-# "Observed" (raw simulated) values
-boxplot(lapply(conf_stats_obs_list, function(x) x$Sensitivity),
-        ylab="Sensitivity", 
-        xlab="Radius (m)", axes=F, col=cols)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("A", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
-
-boxplot(lapply(conf_stats_obs_list, function(x) x$Specificity), 
-        ylab="Specificity", 
-        xlab="Radius (m)", axes=F, col=cols)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("B", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
-
-boxplot(lapply(conf_stats_obs_list, function(x) x$MCC),
-               ylab="MCC", 
-               xlab="Radius (m)", axes=F, col=cols)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("C", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
-
-# SES values
-boxplot(lapply(conf_stats_ses_list, function(x) x$Sensitivity), 
-        ylab="Sensitivity (SES)", 
-        xlab="Radius (m)", axes=F, col=cols)
-polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
-boxplot(lapply(conf_stats_ses_list, function(x) x$Sensitivity), 
-        axes=F, col=cols, add=T)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("D", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
-
-boxplot(lapply(conf_stats_ses_list, function(x) x$Specificity), 
-        ylab="Specificity (SES)", 
-        xlab="Radius (m)", axes=F, col=cols)
-polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
-boxplot(lapply(conf_stats_ses_list, function(x) x$Specificity), 
-        axes=F, col=cols, add=T)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("E", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
-
-boxplot(lapply(conf_stats_ses_list, function(x) x$MCC), 
-        ylab="MCC (SES)", 
-        xlab="Radius (m)", axes=F, col=cols)
-polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
-boxplot(lapply(conf_stats_ses_list, function(x) x$MCC), 
-        axes=F, col=cols, add=T)
-axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
-mtext("F", adj=0, line=0.5)
-abline(v=focdist, col='red', lwd=2, lty=2)
+for(f in seq_along(files)){
+  
+  conf_stats_obs_list <- readRDS(files[f])[[1]]
+  conf_stats_ses_list <- readRDS(files[f])[[2]]
+  
+  pdf(paste0("Figures/FigureS", 
+             c(10:13)[f], ".",
+             tools::file_path_sans_ext(basename(files[f])),
+             ".pdf"), width = 8, height = 10)
+  
+  par(mfcol=c(3,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
+  
+  cols <- rev(viridis::viridis(length(conf_stats_obs_list)))
+  
+  focdist <- c(1,5,5,5)[f]
+  
+  # "Observed" (raw simulated) values
+  boxplot(lapply(conf_stats_obs_list, function(x) x$Sensitivity),
+          ylab="Sensitivity", 
+          xlab="Radius (m)", axes=F, col=cols)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("A", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  boxplot(lapply(conf_stats_obs_list, function(x) x$Specificity), 
+          ylab="Specificity", 
+          xlab="Radius (m)", axes=F, col=cols)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("B", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  boxplot(lapply(conf_stats_obs_list, function(x) x$MCC),
+          ylab="MCC", 
+          xlab="Radius (m)", axes=F, col=cols)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("C", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  # SES values
+  boxplot(lapply(conf_stats_ses_list, function(x) x$Sensitivity), 
+          ylab="Sensitivity (SES)", 
+          xlab="Radius (m)", axes=F, col=cols)
+  polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
+  boxplot(lapply(conf_stats_ses_list, function(x) x$Sensitivity), 
+          axes=F, col=cols, add=T)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("D", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  boxplot(lapply(conf_stats_ses_list, function(x) x$Specificity), 
+          ylab="Specificity (SES)", 
+          xlab="Radius (m)", axes=F, col=cols)
+  polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
+  boxplot(lapply(conf_stats_ses_list, function(x) x$Specificity), 
+          axes=F, col=cols, add=T)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("E", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  boxplot(lapply(conf_stats_ses_list, function(x) x$MCC), 
+          ylab="MCC (SES)", 
+          xlab="Radius (m)", axes=F, col=cols)
+  polygon(x=c(-1,200,200,-1), y=c(-1.96, -1.96, 1.96, 1.96), lty=0, col='grey')
+  boxplot(lapply(conf_stats_ses_list, function(x) x$MCC), 
+          axes=F, col=cols, add=T)
+  axis(1, labels=names(stem.23$abund), at=1:20); axis(2); graphics::box()
+  mtext("F", adj=0, line=0.5)
+  abline(v=focdist, col='red', lwd=2, lty=2)
+  
+  dev.off()
+  
+}
