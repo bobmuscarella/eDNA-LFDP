@@ -89,7 +89,7 @@ for(r in seq_along(stem.23$abund)){
 cp <- rev(viridis::viridis(20))
 
 if(data_selector==1){
-  pdf(paste0("Figures/compare_filtering/FigSx.Alpha_div_correlations_x_bioinformatics.pdf"),
+  pdf(paste0("Figures/FigureS14.Alpha_div_correlations_x_bioinformatics.pdf"),
       width=10, height=8)
   par(mfrow=c(3,4), mar=c(4,4,2,1))
 } 
