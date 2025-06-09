@@ -51,10 +51,18 @@ for(data_selector in seq_along(labels)){
   dna <- readRDS("Processed_data/stem-soil-40pt-data-lenient_10k-20250405.RDA")[[1]]
   stem.23 <- readRDS("Processed_data/stem-soil-40pt-data-lenient_10k-20250405.RDA")[[2]]
   
-  pdf(paste0("Figures/Fig3.Confusion-matrix-stats_",
-           labels[data_selector],
-           ".pdf"), width = 8, height = 10)
-
+  if(data_selector==1){
+    pdf(paste0("Figures/Fig3.Confusion-matrix-stats_",
+               labels[data_selector],
+               ".pdf"), width = 8, height = 10)
+  }else{
+    pdf(paste0("Figures/FigureS",
+    13+data_selector,
+    ".Confusion-matrix-stats_",
+    labels[data_selector],
+    ".pdf"), width = 8, height = 10)
+  }
+  
   par(mfrow=c(3,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
   
   ## Sensitivity (true positive rate)
