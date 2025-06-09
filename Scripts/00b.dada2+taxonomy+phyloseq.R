@@ -15,7 +15,7 @@ cutadapt=1.18 sabre dos2unix r bioconda::blast
 # activate your env
 conda activate LFDPeDNA
 
-### Open the shell script file LFDP_Demultiplex_Primertrim.sh and edit the following user input section (BASE_DIR) and (BARCODE_DATA) with appropriate paths
+### Open the shell script file 00a.LFDP_Demultiplex_Primertrim.sh and edit the following user input section (BASE_DIR) and (BARCODE_DATA) with appropriate paths
 ## For me they are:
 # ======= USER INPUT ========
 BASE_DIR="/Users/glennd/Documents/GitHub/eDNA-LFDP/Raw_data"
@@ -31,7 +31,7 @@ cd /Users/glennd/Documents/GitHub/eDNA-LFDP/Scripts
 ## All intermediate files (i.e. files where indexes for demultiplexing PCR replicates are not found or cutadapt does not find the primer sequence)
 ## are discarded to reduce memory footprint. If one wants the intermediate files retained, the shell script needs modification
 
-bash LFDP_Demultiplex_Primertrim.sh
+bash 00a.LFDP_Demultiplex_Primertrim.sh
 
 ##### SWITCHING NOW TO R - open R in your preferred environment - This workflow has been prepared in Rstudio
 ##### It is important to now open the R project file in the eDNA-LFDP repo home directory so that the file paths below are correct
