@@ -1217,8 +1217,8 @@ str(R1joined)
 ## Now getting sequences in order to both assign species according to our reference library and also to blast the other sequences
 
 # Set output directory and reference path (relative to project root)
-outdir <- file.path("Processed_data/Processed_data/Soil_eDNA_fasta_files")
-ref_fasta <- file.path("RefLibrary", "FASTA_POTURD.fasta")  # LFDP reference library is here
+outdir <- file.path("Processed_data/Soil_eDNA_fasta_files")
+ref_fasta <- file.path("Processed_data", "RefLibrary", "FASTA_POTURD.fasta")  # LFDP reference library is here
 
 # Ensure output directory exists
 dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
@@ -1397,7 +1397,7 @@ colrowtax <- function(x){
   lahs <- x
   colnames(lahs) <- c("OTU","taxID")
   lahs1 <- lahs
-  lahs<-getTaxonomy(lahs[,2],'TaxonomyFiles/accessionTaxa.sql')
+  lahs<-getTaxonomy(lahs[,2],'Processed_data/TaxonomyFiles/accessionTaxa.sql')
   rownames(lahs) <- lahs1$OTU
   return(lahs)
 }
@@ -1419,7 +1419,7 @@ View(R1all.blast.megan.tax$dada.pooled.nochim) # Inspecting
 View(R1SppAssList$dada.nopool.nochim)
 
 ## Changed (ref-taxIDs.csv) this with nex TaxIDs as per Bobs curation update April 8, 2024
-reflbids <- read.csv("TaxonomyFiles/ref-taxIDs1.csv")
+reflbids <- read.csv("Processed_data/TaxonomyFiles/ref-taxIDs1.csv")
 reflbids <-unique(reflbids)
 reflbids <-reflbids[,c(1,2)]
 str(reflbids)
