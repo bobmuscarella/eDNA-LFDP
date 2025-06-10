@@ -2,7 +2,6 @@
 ### COMPUTE CONFUSION MATRIX INDICES WITH THE INTENSIVE SUB-SAMPLE PLOTS
 ########################################################
 
-### THE GOTU COLLAPSED DATASET OF THE G-PLOTS ARE PREPARED IN SCRIPT 2b
 library(phyloseq)
 
 ### Get intensive sample points phyloseq object (list of 12, for each bioinfo)
