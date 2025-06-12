@@ -1,6 +1,12 @@
 ## Reviewer requested summary of LDFP ref library / blast results of ASVs before control using 
 ## NTC samples and BLank DNA extract control samples to assess variaiton in ASVs across samples and controls
 
+## This script is to create SI Dataset 2 - summary of all BLAST matches of non LFDP sequences and of 
+## ASVs appearing in extraction blank, no template control and index jumping controls
+
+## load data if required from 00 script - remove # below
+# load("Processed_data/Phyloseq_processed_PRdata.RData")
+
 ## firstly consolidating information in a workbook for supplementary material
 precleanp1 <- p1data1.pr$p1pspool.lulu
 precleanp2 <- p2data1.pr$p2pspool.lulu
@@ -187,17 +193,11 @@ for (i in seq_len(nrow(joined_df_sorted_similarity))) {
   pcr_E_counts <- c()
   
   if (nzchar(row$P1_ASV_id) && row$P1_ASV_id %in% colnames(precleanp1_filtered1)) {
-    counts <- count_controls(precleanp1_filtered1[, row$P1_ASV_id], rownames(precleanp1_filtered1))
-    joined_df_sorted_similarity[i, c("pcr_N", "sample_N", "pcr_E", "sample_E")] <-
-      joined_df_sorted_similarity[i, c("pcr_N", "sample_N", "pcr_E", "sample_E")] + counts
     pcr_N_counts <- c(pcr_N_counts, precleanp1_filtered1[grepl("^N_", rownames(precleanp1_filtered1)), row$P1_ASV_id])
     pcr_E_counts <- c(pcr_E_counts, precleanp1_filtered1[grepl("^E_", rownames(precleanp1_filtered1)), row$P1_ASV_id])
   }
   
   if (nzchar(row$P2_ASV_id) && row$P2_ASV_id %in% colnames(precleanp2_filtered1)) {
-    counts <- count_controls(precleanp2_filtered1[, row$P2_ASV_id], rownames(precleanp2_filtered1))
-    joined_df_sorted_similarity[i, c("pcr_N", "sample_N", "pcr_E", "sample_E")] <-
-      joined_df_sorted_similarity[i, c("pcr_N", "sample_N", "pcr_E", "sample_E")] + counts
     pcr_N_counts <- c(pcr_N_counts, precleanp2_filtered1[grepl("^N_", rownames(precleanp2_filtered1)), row$P2_ASV_id])
     pcr_E_counts <- c(pcr_E_counts, precleanp2_filtered1[grepl("^E_", rownames(precleanp2_filtered1)), row$P2_ASV_id])
   }
@@ -211,6 +211,7 @@ for (i in seq_len(nrow(joined_df_sorted_similarity))) {
     joined_df_sorted_similarity$pcr_Emaxcount[i] <- max(pcr_E_counts, na.rm = TRUE)
   }
 }
+
 
 write.csv(joined_df_sorted_similarity, "Processed_data/summaryE&Nsamplesp.csv")
 dna_dist[upper.tri(dna_dist)] <- NA

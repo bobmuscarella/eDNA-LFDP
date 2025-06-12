@@ -27,7 +27,7 @@
 
 2. Download the raw data files from Zenodo (Zenodo link).
 
-3. Transfer the unzipped Zenodo archive files ("Raw_data" and "Processed_data") into the cloned `eDNA-LFDP` repository.
+3. Transfer the folders from the unzipped Zenodo archive ZIP files ("Raw_data",  "Processed_data" and "LFDP_Reference_Library") into the cloned `eDNA-LFDP` repository.
 
 4. Open the R project (`eDNA-LFDP.Rproj`) in RStudio and go to the **Files** tab to open individual scripts.
 
@@ -47,4 +47,6 @@
 
 
 *Note that the "Scripts" folder contains a subfolder called "drop_OTUs", which contains modified version of the main scripts to re-run analyses after dropping OTUs that were not sequenced in the reference library.
+
+**Note that the "LFDP_Reference_Library" directory contains all data files and scripts to produce the initial LFDP haplotypes. The .R script in this folder contains instructions. The initial LFDP haplotypes produced by this script required manual curation, as detailed in SI Dataset 1.
 
